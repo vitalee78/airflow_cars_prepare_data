@@ -11,6 +11,8 @@ config/
 tests/
 test_*
 files_data/
+misc.*
+vcs.*
 
 # User-specific stuff
 .idea/**/workspace.xml

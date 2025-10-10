@@ -12,6 +12,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from scripts.cars.lots.loader import LotsLoader
+from scripts.cars.common.parser_utils import get_bs4_util, get_field_util
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +38,7 @@ class ParserCars:
         }
 
     def get_bs4_from_url(self, url: str) -> BeautifulSoup:
-        """Загружает HTML по URL и возвращает BeautifulSoup объект"""
-        try:
-            response = requests.get(url, headers=self.HEADERS, timeout=10)
-            response.raise_for_status()
-            response.encoding = 'utf-8'
-            return BeautifulSoup(response.text, 'html.parser')
-        except Exception as e:
-            logger.error(f"Ошибка при загрузке {url}: {e}")
-            raise
+        return get_bs4_util(url, headers=self.HEADERS)
 
     def get_pagination_from_url(self, base_section_url: str) -> int:
         """Получает максимальный номер страницы из пагинации на первой странице"""
@@ -76,7 +70,7 @@ class ParserCars:
 
         parsed_count = 0
 
-        for page in range(1, total_pages + 1):
+        for page in range(1, total_pages + 1, 10):
             sleep(uniform(0.5, 2.0))
 
             if page == 1:
@@ -98,7 +92,7 @@ class ParserCars:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles:
+                for article in articles[0:3]:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
@@ -233,13 +227,7 @@ class ParserCars:
         return lot_number, lot_date
 
     def get_field(self, pattern, text, cast=str):
-        match = re.search(pattern, text)
-        if match:
-            try:
-                return cast(match.group(1))
-            except (ValueError, TypeError):
-                return None
-        return None
+        return get_field_util(pattern, text, cast)
 
 
 if __name__ == '__main__':

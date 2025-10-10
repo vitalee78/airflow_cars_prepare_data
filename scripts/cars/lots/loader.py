@@ -58,13 +58,13 @@ class LotsLoader:
                     }
                 ).fetchone()
 
-                car_id = result[0]
+                # car_id = result[0]
 
                 # 3. Добавляем запись в историю цен
-                conn.execute(
-                    text("""
-                        INSERT INTO f_cost_hist (car_id, cost, cost_date)
-                        VALUES (:car_id, :cost, NOW())
-                    """),
-                    {"car_id": car_id, "cost": row['cost']}
-                )
+                # conn.execute(
+                #     text("""
+                #         INSERT INTO f_cost_hist (car_id, cost, cost_date)
+                #         VALUES (:car_id, :cost, NOW())
+                #     """),
+                #     {"car_id": car_id, "cost": row['cost']}
+                # )
