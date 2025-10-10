@@ -9,9 +9,235 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+from cars.common.parser_utils import get_bs4_util, get_field_util
 from scripts.cars.lots.loader import LotsLoader
 
 logger = logging.getLogger(__name__)
 
 class ParserAuctions:
-    pass
+    def __init__(self,
+                 airflow_mode: bool = True,
+                 option_cars: str = "honda/vezel/",
+                 batch_size: int = 20
+                 ):
+        self.BATCH_SIZE = batch_size
+        self.airflow_mode = airflow_mode
+        self.BASE_URL = "https://tokidoki.su"
+        self.SECTION_PATH = f"/auc/{option_cars}"
+        self.HEADERS = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        }
+
+    def get_bs4_from_url(self, url: str) -> BeautifulSoup:
+        return get_bs4_util(url, headers=self.HEADERS)
+
+    def get_pagination_from_url(self, base_section_url: str) -> int:
+        """Получает максимальный номер страницы из пагинации на первой странице"""
+        try:
+            soup = self.get_bs4_from_url(base_section_url)
+            pagination_ul = soup.find("ul", class_="pagination")
+
+            if not pagination_ul:
+                return 1
+
+            max_page = 1
+            for link in pagination_ul.find_all("a", href=True):
+                href = link["href"]
+                match = re.search(r'/page-(\d+)/', href)
+                if match:
+                    page_num = int(match.group(1))
+                    max_page = max(max_page, page_num)
+            return max_page
+        except Exception as e:
+            logger.warning(f"Не удалось определить пагинацию, используем 1 страницу: {e}")
+            return 1
+
+    def parse_auctions_and_save(self):
+        base_url = self.BASE_URL + self.SECTION_PATH
+
+        # Загружаем первую страницу для проверки наличия данных
+        try:
+            first_page_soup = self.get_bs4_from_url(base_url)
+        except Exception as e:
+            logger.error(f"Не удалось загрузить первую страницу: {e}")
+            return
+
+        first_page_articles = first_page_soup.find_all('article', class_='lot-teaser')
+        if not first_page_articles:
+            # Дополнительно проверим сообщение "не найдены"
+            no_results_header = first_page_soup.find('h3', string=re.compile(r'.*не найдены.*', re.IGNORECASE))
+            if no_results_header or first_page_soup.find(string=re.compile(r'Всего найдено:\s*0')):
+                logger.info("Нет результатов по заданным фильтрам. Парсинг завершён.")
+                return
+            else:
+                logger.warning("Не найдено лотов, но нет явного сообщения 'не найдены'. Продолжаем ...")
+
+
+        total_pages = self.get_pagination_from_url(base_url)
+
+        loader = LotsLoader(airflow_mode=self.airflow_mode)
+        batch = []
+
+        parsed_count = 0
+
+        for page in range(1, total_pages + 1, 10):
+            sleep(uniform(0.5, 2.0))
+
+            if page == 1:
+                url = base_url
+            else:
+                if '?' in self.SECTION_PATH:
+                    path_part, params_part = self.SECTION_PATH.split('?', 1)
+                    url = f"{self.BASE_URL.strip()}{path_part.rstrip('/')}/page-{page}/?{params_part}"
+                else:
+                    url = f"{self.BASE_URL.strip()}{self.SECTION_PATH.rstrip('/')}/page-{page}/"
+
+            logger.info(f"Парсинг страницы {page}/{total_pages}: {url}")
+            print(f"Парсинг страницы {page}/{total_pages}: {url}")
+
+            try:
+                soup = self.get_bs4_from_url(url)
+                articles = soup.find_all('article', class_='lot-teaser')
+
+                if not articles:
+                    logger.warning(f"На странице {page} не найдено лотов")
+                    continue
+
+                for article in articles[0:3]:
+                    try:
+                        parsed = self.parse_info(article)
+                        if not parsed or 'brand' not in parsed:
+                            continue
+
+                        lot_id, lot_date = self.pars_info_lot(article)
+                        if not lot_id:
+                            continue
+
+                        # Добавляем в parsed
+                        parsed['source_lot_id'] = lot_id
+                        try:
+                            parsed['lot_date'] = datetime.strptime(lot_date, '%d.%m.%Y').date()
+                        except ValueError:
+                            parsed['lot_date'] = None
+
+                        a_tag = article.find('a', href=True)
+                        parsed['link_source'] = (self.BASE_URL.strip() + a_tag['href']) if a_tag else None
+
+                        batch.append(parsed)
+                        parsed_count += 1
+
+                        # Сохраняем батч
+                        if len(batch) >= self.BATCH_SIZE:
+                            df_batch = pd.DataFrame(batch)
+                            print(df_batch)
+                            # loader.save_lots_to_db(df_batch)
+                            batch = []  # очищаем
+
+                    except Exception as e:
+                        logger.error(f"Ошибка при обработке лота: {e}")
+                        continue
+
+            except Exception as e:
+                logger.error(f"Ошибка на странице {page}: {e}")
+                continue
+
+        # Сохраняем остаток
+        if batch:
+            df_batch = pd.DataFrame(batch)
+            print(df_batch)
+            # loader.save_lots_to_db(df_batch)
+
+        logger.info(f"Завершён парсинг. Сохранено {parsed_count} лотов.")
+
+    def parse_info(self, article) -> dict:
+        info_div = article.find("div", class_="lot-teaser__info")
+        if not info_div:
+            return {}
+
+        data = {}
+        title_elem = info_div.find("div", class_='lot-teaser__info__title')
+        if not title_elem:
+            return {}
+
+        info_title = title_elem.get_text(strip=True)
+        parts = info_title.split(maxsplit=1)
+        if len(parts) < 2:
+            return {}
+        data['brand'] = parts[0].capitalize()
+        data['model'] = parts[1].upper()
+
+        info_list = info_div.find("div", class_='lot-teaser__info__list')
+        if not info_list:
+            return data
+
+        for li in info_list.select('li'):
+            text = li.get_text(strip=True)
+            if ':' not in text:
+                continue
+            key, value = text.split(':', 1)
+            key = key.strip()
+            value = value.strip()
+
+            if key == "Кузов":
+                data['carbody'] = str(value)
+            elif key == "Пробег":
+                try:
+                    data['mileage'] = int(value.replace(' ', ''))
+                except ValueError:
+                    pass
+            elif key in ["Обьем", "Объем", "Объём"]:
+                try:
+                    # Убираем "см³" или другие символы
+                    vol = re.sub(r'[^\d]', '', value)
+                    if vol:
+                        data['engine_volume'] = int(vol)
+                except (ValueError, TypeError):
+                    pass
+            elif key == "Год":
+                try:
+                    data['year'] = int(value)
+                except ValueError:
+                    pass
+            elif key == "Оценка":
+                try:
+                    data['rate'] = float(value.replace(',', '.'))
+                except ValueError:
+                    pass
+
+        return data
+
+    def pars_info_lot(self, article) -> Tuple[str, str]:
+        lot_div = article.find("div", class_="lot-teaser__lot")
+        if not lot_div:
+            return "", ""
+
+        lines = [s.strip() for s in lot_div.stripped_strings]
+
+        lot_number = ""
+        lot_date = ""
+
+        # Найдём лот
+        for line in lines:
+            if line.startswith("Лот "):
+                match = re.search(r'Лот\s+(\d+)', line)
+                if match:
+                    lot_number = match.group(1)
+
+        # Дата — последняя строка, если она подходит под формат
+        if lines and re.fullmatch(r'\d{2}\.\d{2}\.\d{4}', lines[-1]):
+            lot_date = lines[-1]
+
+        return lot_number, lot_date
+
+    def get_field(self, pattern, text, cast=str):
+        return get_field_util(pattern, text, cast)
+
+
+if __name__ == '__main__':
+    # Для локального запуска
+    parser = ParserAuctions(airflow_mode=False)
+    parser.parse_auctions_and_save()
