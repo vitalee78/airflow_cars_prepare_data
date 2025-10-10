@@ -1,0 +1,14 @@
+requests
+beautifulsoup4
+pandas
+sqlalchemy
+psycopg2-binary
+python-telegram-bot==13.15  # или python-telegram-bot>=20 если используете async
+plotly
+python-dotenv
+psycopg2-binary==2.9.9
+SQLAlchemy==1.4.54
+SQLAlchemy-JSONField==1.0.1.post0
+SQLAlchemy-Utils==0.41.1
+sqlparse==0.4.4
+python-dotenv==1.0.1
