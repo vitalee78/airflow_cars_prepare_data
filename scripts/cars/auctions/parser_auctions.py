@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from cars.common.parser_utils import get_bs4_util, get_field_util
-from scripts.cars.lots.loader import LotsLoader
+from scripts.cars.auctions.loader_auctions import LoaderAuctions
 
 logger = logging.getLogger(__name__)
 
@@ -79,12 +79,12 @@ class ParserAuctions:
 
         total_pages = self.get_pagination_from_url(base_url)
 
-        loader = LotsLoader(airflow_mode=self.airflow_mode)
+        loader = LoaderAuctions(airflow_mode=self.airflow_mode)
         batch = []
 
         parsed_count = 0
 
-        for page in range(1, total_pages + 1, 10):
+        for page in range(1, total_pages + 1):
             sleep(uniform(0.5, 2.0))
 
             if page == 1:
@@ -107,7 +107,7 @@ class ParserAuctions:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles[0:3]:
+                for article in articles:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
@@ -133,8 +133,7 @@ class ParserAuctions:
                         # Сохраняем батч
                         if len(batch) >= self.BATCH_SIZE:
                             df_batch = pd.DataFrame(batch)
-                            print(df_batch)
-                            # loader.save_lots_to_db(df_batch)
+                            loader.save_auctions_to_db(df_batch)
                             batch = []  # очищаем
 
                     except Exception as e:
@@ -148,8 +147,7 @@ class ParserAuctions:
         # Сохраняем остаток
         if batch:
             df_batch = pd.DataFrame(batch)
-            print(df_batch)
-            # loader.save_lots_to_db(df_batch)
+            loader.save_auctions_to_db(df_batch)
 
         logger.info(f"Завершён парсинг. Сохранено {parsed_count} лотов.")
 
@@ -213,7 +211,7 @@ class ParserAuctions:
     def pars_info_lot(self, article) -> Tuple[str, str]:
         lot_div = article.find("div", class_="lot-teaser__lot")
         if not lot_div:
-            return "", ""
+            raise logger.error("Not found lot")
 
         lines = [s.strip() for s in lot_div.stripped_strings]
 

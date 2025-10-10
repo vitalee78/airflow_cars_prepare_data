@@ -1,4 +1,4 @@
-# scripts/loader.py
+# scripts/loader_lots.py
 
 from sqlalchemy import text
 from scripts.cars.common.db_postgres import get_engine

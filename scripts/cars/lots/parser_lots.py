@@ -11,7 +11,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from scripts.cars.lots.loader import LotsLoader
+from scripts.cars.lots.loader_lots import LotsLoader
 from scripts.cars.common.parser_utils import get_bs4_util, get_field_util
 
 
@@ -70,7 +70,7 @@ class ParserCars:
 
         parsed_count = 0
 
-        for page in range(1, total_pages + 1, 10):
+        for page in range(1, total_pages + 1):
             sleep(uniform(0.5, 2.0))
 
             if page == 1:
@@ -92,7 +92,7 @@ class ParserCars:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles[0:3]:
+                for article in articles:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
@@ -122,7 +122,6 @@ class ParserCars:
                         parsed['link_source'] = (self.BASE_URL.strip() + a_tag['href']) if a_tag else None
 
                         batch.append(parsed)
-                        print(parsed)
                         parsed_count += 1
 
                         # Сохраняем батч

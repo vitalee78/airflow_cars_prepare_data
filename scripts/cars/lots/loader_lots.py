@@ -58,7 +58,7 @@ class LotsLoader:
                     }
                 ).fetchone()
 
-                # car_id = result[0]
+                car_id = result[0]
 
                 # 3. Добавляем запись в историю цен
                 # conn.execute(
