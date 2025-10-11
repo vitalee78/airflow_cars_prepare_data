@@ -13,7 +13,7 @@ class TelegramNotifier(BaseNotifier):
         self,
         bot_token: str | None = None,
         chat_id: str | None = None,
-        notify_success: bool = True,      # можно отключить успех при необходимости
+        notify_success: bool = True,      # можно отключить успех
         notify_failure: bool = True,      # можно отключить ошибки
         *args,
         **kwargs,

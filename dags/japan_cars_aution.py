@@ -6,14 +6,16 @@ import pendulum
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
+from airflow.operators.dummy import DummyOperator
 
 from scripts.cars.auctions.parser_auctions import ParserAuctions
 from telegram_notifier import TelegramNotifier
+from sent_dag_aummary import _send_dag_summary
 
 local_tz = pendulum.timezone("Europe/Moscow")
 
 
-def _run_parsing_auction():
+def _run_parsing_auction(**context):
     brand_model_auc = Variable.get("auc_brand_model", default_var="honda/vezel")
     option_cars_auc = Variable.get("auc_option_cars", default_var="year-from=2013")
     batch_size = int(Variable.get("batch_size", default_var=20))
@@ -26,7 +28,8 @@ def _run_parsing_auction():
         batch_size=batch_size,
         min_year=min_year
     )
-    parser.parse_auctions_and_save()
+    result = parser.parse_auctions_and_save()
+    return result
 
 
 with DAG(
@@ -41,5 +44,14 @@ with DAG(
         task_id='parse_and_load_auction',
         python_callable=_run_parsing_auction,
         on_failure_callback=TelegramNotifier(),
-        on_success_callback=TelegramNotifier(),
+        # on_success_callback=TelegramNotifier(),
     )
+
+    summary_task = PythonOperator(
+        task_id='send_dag_summary',
+        python_callable=_send_dag_summary,
+        # Запускать ТОЛЬКО если parse_task успешен
+        trigger_rule='all_success',
+    )
+
+    parse_and_load_task >> summary_task

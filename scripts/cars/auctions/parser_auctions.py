@@ -60,30 +60,41 @@ class ParserAuctions:
             return 1
 
     def parse_auctions_and_save(self):
+        """
+               Парсит лоты и сохраняет в БД.
+               Возвращает словарь с результатами: {'total_lots': int, 'status': str, 'message': str}
+               """
         base_url = self.BASE_URL + self.SECTION_PATH
 
-        # Загружаем первую страницу для проверки наличия данных
         try:
             first_page_soup = self.get_bs4_from_url(base_url)
         except Exception as e:
             logger.error(f"Не удалось загрузить первую страницу: {e}")
-            return
+            return {
+                "total_lots": 0,
+                "status": "error",
+                "message": f"Ошибка загрузки первой страницы: {e}"
+            }
+
+        # Проверка на отсутствие результатов
+        no_results = (
+                first_page_soup.find('h3', string=re.compile(r'.*не найдены.*', re.IGNORECASE)) or
+                first_page_soup.find(string=re.compile(r'Всего найдено:\s*0'))
+        )
+        if no_results:
+            logger.info("Нет результатов по заданным фильтрам. Парсинг завершён.")
+            return {
+                "total_lots": 0,
+                "status": "success",
+                "message": "Нет лотов по фильтрам"
+            }
 
         first_page_articles = first_page_soup.find_all('article', class_='lot-teaser')
-        if not first_page_articles:
-            # Дополнительно проверим сообщение "не найдены"
-            no_results_header = first_page_soup.find('h3', string=re.compile(r'.*не найдены.*', re.IGNORECASE))
-            if no_results_header or first_page_soup.find(string=re.compile(r'Всего найдено:\s*0')):
-                logger.info("Нет результатов по заданным фильтрам. Парсинг завершён.")
-                return
-            else:
-                logger.warning("Не найдено лотов, но нет явного сообщения 'не найдены'. Продолжаем ...")
-
+        if not first_page_articles and not no_results:
+            logger.warning("Лоты не найдены, но явного '0 найдено' нет. Продолжаем парсинг...")
         total_pages = self.get_pagination_from_url(base_url)
-
         loader = LoaderAuctions(airflow_mode=self.airflow_mode)
         batch = []
-
         parsed_count = 0
 
         for page in range(1, total_pages + 1):
@@ -108,7 +119,7 @@ class ParserAuctions:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles[0:3]:
+                for article in articles:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
@@ -217,7 +228,8 @@ class ParserAuctions:
     def pars_info_lot(self, article) -> Tuple[str, str]:
         lot_div = article.find("div", class_="lot-teaser__lot")
         if not lot_div:
-            raise logger.error("Not found lot")
+            logger.error("Не найден блок с информацией о лоте")
+            return "", ""
 
         lines = [s.strip() for s in lot_div.stripped_strings]
 
