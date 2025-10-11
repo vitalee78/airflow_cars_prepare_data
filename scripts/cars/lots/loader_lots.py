@@ -24,7 +24,7 @@ class LotsLoader:
                 carbody_id = ref.get_or_create_carbody(model_id, row.get('carbody'))
 
                 # 2. Вставка или обновление лота в f_cars
-                result = conn.execute(
+                conn.execute(
                     text("""
                         INSERT INTO f_cars (
                             id_brand, id_model, id_carbody,
@@ -58,7 +58,7 @@ class LotsLoader:
                     }
                 ).fetchone()
 
-                car_id = result[0]
+                # car_id = result[0]
 
                 # 3. Добавляем запись в историю цен
                 # conn.execute(

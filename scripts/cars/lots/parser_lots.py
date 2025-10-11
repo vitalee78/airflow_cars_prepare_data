@@ -25,7 +25,6 @@ class ParserCars:
                  min_year: int = 2010
                  ):
         self.MIN_YEAR = min_year
-        self.MIN_YEAR = 2025
         self.BATCH_SIZE = batch_size
         self.airflow_mode = airflow_mode
         self.BASE_URL = "https://tokidoki.su"
@@ -134,7 +133,7 @@ class ParserCars:
                         # Сохраняем батч
                         if len(batch) >= self.BATCH_SIZE:
                             df_batch = pd.DataFrame(batch)
-                            # loader.save_lots_to_db(df_batch)
+                            loader.save_lots_to_db(df_batch)
                             batch = []  # очищаем
 
                     except Exception as e:
@@ -148,7 +147,7 @@ class ParserCars:
         # Сохраняем остаток
         if batch:
             df_batch = pd.DataFrame(batch)
-            # loader.save_lots_to_db(df_batch)
+            loader.save_lots_to_db(df_batch)
 
         logger.info(f"Завершён парсинг. Сохранено {parsed_count} лотов.")
 
