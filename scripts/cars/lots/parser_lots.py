@@ -71,7 +71,7 @@ class ParserCars:
 
         parsed_count = 0
 
-        for page in range(1, total_pages + 1, 5):
+        for page in range(1, total_pages + 1):
             sleep(uniform(0.5, 2.0))
 
             if page == 1:
@@ -94,7 +94,7 @@ class ParserCars:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles[0:3]:
+                for article in articles:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:

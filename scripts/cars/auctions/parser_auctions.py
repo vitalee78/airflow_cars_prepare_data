@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import re
 from datetime import datetime
@@ -9,8 +8,8 @@ from typing import Tuple
 import pandas as pd
 from bs4 import BeautifulSoup
 
-from cars.common.parser_utils import get_bs4_util, get_field_util, should_skip_by_year
 from scripts.cars.auctions.loader_auctions import LoaderAuctions
+from scripts.cars.common.parser_utils import get_bs4_util, get_field_util, should_skip_by_year
 
 logger = logging.getLogger(__name__)
 

@@ -25,10 +25,10 @@ def _run_parsing_auction():
 
 with DAG(
     'japan_cars_auction',
-    start_date=datetime(2025, 10, 11, local_tz),
-    chedule_interval='0 10,13,16,19,22 * * *',  # 10:00, 13:00, 16:00, 19:00, 22:00 — и на следующий день снова с 10:00
+    start_date=datetime(2025, 10, 11, tzinfo=local_tz),
+    schedule_interval='0 10,13,16,19,22 * * *',  # 10:00, 13:00, 16:00, 19:00, 22:00 — и на следующий день снова с 10:00
     catchup=False,
-    tags=['japan', 'cars'],
+    tags=['japan', 'cars', 'auctions'],
 ) as dag:
 
     parse_and_load_task = PythonOperator(
