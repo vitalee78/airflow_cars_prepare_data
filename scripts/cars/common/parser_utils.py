@@ -29,3 +29,19 @@ def get_field_util(pattern: str, text: str, cast=str):
         except (ValueError, TypeError):
             return None
     return None
+
+
+def should_skip_by_year(year: int | None, min_year: int, title: str = "Без названия") -> bool:
+    """
+    Проверяет, нужно ли пропустить запись из-за слишком старого года.
+
+    :param year: год выпуска (может быть None)
+    :param min_year: минимально допустимый год
+    :param title: название авто для логирования
+    :return: True — если нужно пропустить
+    """
+    if year is not None and year < min_year:
+        logger.info(f"Пропущен лот с годом {year} (< {min_year}): {title}")
+        print(f"Пропущен лот с годом {year} (< {min_year}): {title}")
+        return True
+    return False

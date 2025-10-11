@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import re
 from datetime import datetime
@@ -6,10 +7,9 @@ from time import sleep
 from typing import Tuple
 
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 
-from cars.common.parser_utils import get_bs4_util, get_field_util
+from cars.common.parser_utils import get_bs4_util, get_field_util, should_skip_by_year
 from scripts.cars.auctions.loader_auctions import LoaderAuctions
 
 logger = logging.getLogger(__name__)
@@ -18,8 +18,10 @@ class ParserAuctions:
     def __init__(self,
                  airflow_mode: bool = True,
                  option_cars: str = "honda/vezel/",
-                 batch_size: int = 20
+                 batch_size: int = 20,
+                 min_year: int = 2010
                  ):
+        self.MIN_YEAR = min_year
         self.BATCH_SIZE = batch_size
         self.airflow_mode = airflow_mode
         self.BASE_URL = "https://tokidoki.su"
@@ -107,10 +109,16 @@ class ParserAuctions:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles:
+                for article in articles[0:3]:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
+                            continue
+
+                        title_elem = parsed.get('brand') + ' ' + parsed.get('model')
+                        print(title_elem)
+
+                        if should_skip_by_year(parsed.get('year'), self.MIN_YEAR, title_elem):
                             continue
 
                         lot_id, lot_date = self.pars_info_lot(article)

@@ -8,12 +8,10 @@ from time import sleep
 from typing import Tuple
 
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 
+from scripts.cars.common.parser_utils import get_bs4_util, get_field_util, should_skip_by_year
 from scripts.cars.lots.loader_lots import LotsLoader
-from scripts.cars.common.parser_utils import get_bs4_util, get_field_util
-
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +21,11 @@ class ParserCars:
                  airflow_mode: bool = True,
                  brand_model: str = "honda/vezel",
                  option_cars: str = "rate-4=4&rate-4-5=4.5&year-from=2020&year-to=2023",
-                 batch_size: int = 20
+                 batch_size: int = 20,
+                 min_year: int = 2010
                  ):
+        self.MIN_YEAR = min_year
+        self.MIN_YEAR = 2025
         self.BATCH_SIZE = batch_size
         self.airflow_mode = airflow_mode
         self.BASE_URL = "https://tokidoki.su"
@@ -70,7 +71,7 @@ class ParserCars:
 
         parsed_count = 0
 
-        for page in range(1, total_pages + 1):
+        for page in range(1, total_pages + 1, 5):
             sleep(uniform(0.5, 2.0))
 
             if page == 1:
@@ -83,6 +84,7 @@ class ParserCars:
                     url = f"{self.BASE_URL.strip()}{self.SECTION_PATH.rstrip('/')}/page-{page}/"
 
             logger.info(f"Парсинг страницы {page}/{total_pages}: {url}")
+            print(f"Парсинг страницы {page}/{total_pages}: {url}")
 
             try:
                 soup = self.get_bs4_from_url(url)
@@ -92,10 +94,15 @@ class ParserCars:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles:
+                for article in articles[0:3]:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
+                            continue
+
+                        title_elem = parsed.get('brand') + ' ' + parsed.get('model')
+
+                        if should_skip_by_year(parsed.get('year'), self.MIN_YEAR, title_elem):
                             continue
 
                         lot_id, lot_date = self.pars_info_lot(article)
@@ -127,7 +134,7 @@ class ParserCars:
                         # Сохраняем батч
                         if len(batch) >= self.BATCH_SIZE:
                             df_batch = pd.DataFrame(batch)
-                            loader.save_lots_to_db(df_batch)
+                            # loader.save_lots_to_db(df_batch)
                             batch = []  # очищаем
 
                     except Exception as e:
@@ -141,7 +148,7 @@ class ParserCars:
         # Сохраняем остаток
         if batch:
             df_batch = pd.DataFrame(batch)
-            loader.save_lots_to_db(df_batch)
+            # loader.save_lots_to_db(df_batch)
 
         logger.info(f"Завершён парсинг. Сохранено {parsed_count} лотов.")
 
