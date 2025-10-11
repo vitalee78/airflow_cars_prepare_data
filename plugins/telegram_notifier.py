@@ -9,36 +9,52 @@ from airflow.models import Variable
 
 
 class TelegramNotifier(BaseNotifier):
-    """
-    Sends a message to Telegram when a DAG/task fails.
-    Uses Airflow Variables: 'telegram_bot_token', 'telegram_chat_id'
-    """
-
     def __init__(
         self,
         bot_token: str | None = None,
         chat_id: str | None = None,
+        notify_success: bool = True,      # можно отключить успех при необходимости
+        notify_failure: bool = True,      # можно отключить ошибки
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.bot_token = bot_token or Variable.get("telegram_bot_token")
         self.chat_id = chat_id or Variable.get("telegram_chat_id")
+        self.notify_success = notify_success
+        self.notify_failure = notify_failure
 
     def notify(self, context: Context):
         task_instance = context["task_instance"]
         dag_id = context["dag"].dag_id
         task_id = task_instance.task_id
         execution_date = context["execution_date"]
-        exception = context.get("exception", "Unknown error")
 
-        message = (
-            f"🚨 *Airflow Task Failed!*\n\n"
-            f"*DAG:* `{dag_id}`\n"
-            f"*Task:* `{task_id}`\n"
-            f"*Execution Date:* `{execution_date}`\n"
-            f"*Error:* `{str(exception)}`"
-        )
+        # Определяем, успех или ошибка
+        exception = context.get("exception")
+        if exception:
+            if not self.notify_failure:
+                return
+            status = "❌ FAILED"
+            error_msg = f"*Error:* `{str(exception)}`"
+            message = (
+                f"🚨 *Airflow Task {status}!*\n\n"
+                f"*DAG:* `{dag_id}`\n"
+                f"*Task:* `{task_id}`\n"
+                f"*Execution Date:* `{execution_date}`\n"
+                f"{error_msg}"
+            )
+        else:
+            if not self.notify_success:
+                return
+            status = "✅ SUCCESS"
+            message = (
+                f"🎉 *Airflow Task {status}!*\n\n"
+                f"*DAG:* `{dag_id}`\n"
+                f"*Task:* `{task_id}`\n"
+                f"*Execution Date:* `{execution_date}`\n"
+                f"*Duration:* `{task_instance.duration:.2f} sec`"
+            )
 
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {

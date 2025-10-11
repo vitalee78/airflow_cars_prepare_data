@@ -7,6 +7,8 @@ from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from scripts.cars.lots.parser_lots import ParserCars
 
+from telegram_notifier import TelegramNotifier
+
 local_tz = pendulum.timezone("Europe/Moscow")
 
 def _run_parsing_lots():
@@ -35,4 +37,6 @@ with DAG(
     parse_and_load_task = PythonOperator(
         task_id='parse_and_load_lots',
         python_callable=_run_parsing_lots,
+        on_failure_callback=TelegramNotifier(),
+        on_success_callback=TelegramNotifier(),
     )

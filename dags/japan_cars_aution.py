@@ -8,6 +8,7 @@ from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 
 from scripts.cars.auctions.parser_auctions import ParserAuctions
+from telegram_notifier import TelegramNotifier
 
 local_tz = pendulum.timezone("Europe/Moscow")
 
@@ -39,4 +40,6 @@ with DAG(
     parse_and_load_task = PythonOperator(
         task_id='parse_and_load_auction',
         python_callable=_run_parsing_auction,
+        on_failure_callback=TelegramNotifier(),
+        on_success_callback=TelegramNotifier(),
     )
