@@ -8,15 +8,15 @@ from time import sleep
 from typing import Tuple
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
-from scripts.cars.common.parser_utils import get_bs4_util, get_field_util, should_skip_by_year
+from scripts.cars.common.base_parser import BaseParser
+from scripts.cars.common.parser_utils import get_field_util, should_skip_by_year
 from scripts.cars.lots.loader_lots import LotsLoader
 
 logger = logging.getLogger(__name__)
 
 
-class ParserCars:
+class ParserCars(BaseParser):
     def __init__(self,
                  airflow_mode: bool = True,
                  brand_model: str = "honda/vezel",
@@ -36,9 +36,6 @@ class ParserCars:
             'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
         }
-
-    def get_bs4_from_url(self, url: str) -> BeautifulSoup:
-        return get_bs4_util(url, headers=self.HEADERS)
 
     def get_pagination_from_url(self, base_section_url: str) -> int:
         """Получает максимальный номер страницы из пагинации на первой странице"""
@@ -63,11 +60,15 @@ class ParserCars:
 
     def parse_tokidoki_and_save(self):
         base_url = self.BASE_URL + self.SECTION_PATH
+
+        soup, should_stop, result = self.check_first_page_and_get_soup(base_url)
+        if should_stop:
+            return result
+
         total_pages = self.get_pagination_from_url(base_url)
 
         loader = LotsLoader(airflow_mode=self.airflow_mode)
         batch = []
-
         parsed_count = 0
 
         for page in range(1, total_pages + 1):
@@ -83,7 +84,6 @@ class ParserCars:
                     url = f"{self.BASE_URL.strip()}{self.SECTION_PATH.rstrip('/')}/page-{page}/"
 
             logger.info(f"Парсинг страницы {page}/{total_pages}: {url}")
-            print(f"Парсинг страницы {page}/{total_pages}: {url}")
 
             try:
                 soup = self.get_bs4_from_url(url)
@@ -93,7 +93,7 @@ class ParserCars:
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles:
+                for article in articles[0:3]:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:

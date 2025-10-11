@@ -6,15 +6,15 @@ from time import sleep
 from typing import Tuple
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
 from scripts.cars.auctions.loader_auctions import LoaderAuctions
-from scripts.cars.common.parser_utils import get_bs4_util, get_field_util, should_skip_by_year
+from scripts.cars.common.base_parser import BaseParser
+from scripts.cars.common.parser_utils import get_field_util, should_skip_by_year
 
 logger = logging.getLogger(__name__)
 
 
-class ParserAuctions:
+class ParserAuctions(BaseParser):
     def __init__(self,
                  airflow_mode: bool = True,
                  brand_model_auc: str = "honda/vezel",
@@ -34,9 +34,6 @@ class ParserAuctions:
             'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
         }
-
-    def get_bs4_from_url(self, url: str) -> BeautifulSoup:
-        return get_bs4_util(url, headers=self.HEADERS)
 
     def get_pagination_from_url(self, base_section_url: str) -> int:
         """Получает максимальный номер страницы из пагинации на первой странице"""
@@ -66,32 +63,10 @@ class ParserAuctions:
                """
         base_url = self.BASE_URL + self.SECTION_PATH
 
-        try:
-            first_page_soup = self.get_bs4_from_url(base_url)
-        except Exception as e:
-            logger.error(f"Не удалось загрузить первую страницу: {e}")
-            return {
-                "total_lots": 0,
-                "status": "error",
-                "message": f"Ошибка загрузки первой страницы: {e}"
-            }
+        soup, should_stop, result = self.check_first_page_and_get_soup(base_url)
+        if should_stop:
+            return result
 
-        # Проверка на отсутствие результатов
-        no_results = (
-                first_page_soup.find('h3', string=re.compile(r'.*не найдены.*', re.IGNORECASE)) or
-                first_page_soup.find(string=re.compile(r'Всего найдено:\s*0'))
-        )
-        if no_results:
-            logger.info("Нет результатов по заданным фильтрам. Парсинг завершён.")
-            return {
-                "total_lots": 0,
-                "status": "success",
-                "message": "Нет лотов по фильтрам"
-            }
-
-        first_page_articles = first_page_soup.find_all('article', class_='lot-teaser')
-        if not first_page_articles and not no_results:
-            logger.warning("Лоты не найдены, но явного '0 найдено' нет. Продолжаем парсинг...")
         total_pages = self.get_pagination_from_url(base_url)
         loader = LoaderAuctions(airflow_mode=self.airflow_mode)
         batch = []

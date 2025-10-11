@@ -5,11 +5,12 @@ import pendulum
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
-from scripts.cars.lots.parser_lots import ParserCars
 
-from telegram_notifier import TelegramNotifier
+from scripts.cars.lots.parser_lots import ParserCars
+from scripts.cars.common.telegram_alerts import send_telegram_message, build_failure_message, build_success_message
 
 local_tz = pendulum.timezone("Europe/Moscow")
+
 
 def _run_parsing_lots():
     brand_model = Variable.get("lot_brand_model", default_var="honda/vezel")
@@ -24,19 +25,48 @@ def _run_parsing_lots():
         batch_size=batch_size,
         min_year=min_year
     )
-    parser.parse_tokidoki_and_save()
+    result = parser.parse_tokidoki_and_save()
+    return result
 
+
+def _on_failure_callback(context):
+    dag_id = context["dag"].dag_id
+    task_id = context["task_instance"].task_id
+    execution_date = context["execution_date"]
+    exception = context.get("exception") or Exception("Неизвестная ошибка")
+
+    message = build_failure_message(dag_id, task_id, execution_date, exception)
+    send_telegram_message(message)
+
+
+def _on_success_callback(context):
+    dag_id = context["dag"].dag_id
+    task_id = context["task_instance"].task_id
+    execution_date = context["execution_date"]
+
+    # Получаем результат, если нужно
+    result = context["task_instance"].xcom_pull(task_ids=task_id)
+    extra = f"Обработано лотов: {result.get('total_lots', 'N/A')}" if result else ""
+
+    start = context["dag_run"].start_date
+    end = context["task_instance"].end_date or context["task_instance"].start_date
+    duration = (end - start).total_seconds() if start else 0
+
+    message = build_success_message(dag_id, task_id, execution_date, duration, extra)
+    send_telegram_message(message)
+
+
+# DAG
 with DAG(
-    'japan_cars_lots',
-    start_date=datetime(2025, 10, 9, tzinfo=local_tz),
-    schedule_interval='0 3 * * *',  # 03:00 UTC = 06:00 MSK
-    catchup=False,
-    tags=['japan', 'cars'],
+        'japan_cars_lots',
+        start_date=datetime(2025, 10, 9, tzinfo=local_tz),
+        schedule_interval='0 3 * * *',
+        catchup=False,
+        tags=['japan', 'cars', 'lots'],
 ) as dag:
-
-    parse_and_load_task = PythonOperator(
+    parse_task = PythonOperator(
         task_id='parse_and_load_lots',
         python_callable=_run_parsing_lots,
-        on_failure_callback=TelegramNotifier(),
-        on_success_callback=TelegramNotifier(),
+        on_failure_callback=_on_failure_callback,
+        on_success_callback=_on_success_callback,
     )
