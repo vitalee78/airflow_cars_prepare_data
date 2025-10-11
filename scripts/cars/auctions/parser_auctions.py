@@ -13,10 +13,12 @@ from scripts.cars.common.parser_utils import get_bs4_util, get_field_util, shoul
 
 logger = logging.getLogger(__name__)
 
+
 class ParserAuctions:
     def __init__(self,
                  airflow_mode: bool = True,
-                 option_cars: str = "honda/vezel/",
+                 brand_model_auc: str = "honda/vezel",
+                 option_cars_auc: str = "year-from=2013",
                  batch_size: int = 20,
                  min_year: int = 2010
                  ):
@@ -24,7 +26,7 @@ class ParserAuctions:
         self.BATCH_SIZE = batch_size
         self.airflow_mode = airflow_mode
         self.BASE_URL = "https://tokidoki.su"
-        self.SECTION_PATH = f"/auc/{option_cars}"
+        self.SECTION_PATH = f"/auc/{brand_model_auc}/?{option_cars_auc}"
         self.HEADERS = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -77,7 +79,6 @@ class ParserAuctions:
             else:
                 logger.warning("Не найдено лотов, но нет явного сообщения 'не найдены'. Продолжаем ...")
 
-
         total_pages = self.get_pagination_from_url(base_url)
 
         loader = LoaderAuctions(airflow_mode=self.airflow_mode)
@@ -98,7 +99,6 @@ class ParserAuctions:
                     url = f"{self.BASE_URL.strip()}{self.SECTION_PATH.rstrip('/')}/page-{page}/"
 
             logger.info(f"Парсинг страницы {page}/{total_pages}: {url}")
-            print(f"Парсинг страницы {page}/{total_pages}: {url}")
 
             try:
                 soup = self.get_bs4_from_url(url)
@@ -115,7 +115,6 @@ class ParserAuctions:
                             continue
 
                         title_elem = parsed.get('brand') + ' ' + parsed.get('model')
-                        print(title_elem)
 
                         if should_skip_by_year(parsed.get('year'), self.MIN_YEAR, title_elem):
                             continue

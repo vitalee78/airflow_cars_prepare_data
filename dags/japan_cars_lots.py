@@ -10,8 +10,8 @@ from scripts.cars.lots.parser_lots import ParserCars
 local_tz = pendulum.timezone("Europe/Moscow")
 
 def _run_parsing_lots():
-    brand_model = Variable.get("brand_model", default_var="honda/vezel")
-    option_cars = Variable.get("option_cars", default_var="rate-4=4&rate-4-5=4.5&year-from=2016&year-to=2023")
+    brand_model = Variable.get("lot_brand_model", default_var="honda/vezel")
+    option_cars = Variable.get("lot_option_cars", default_var="rate-4=4&rate-4-5=4.5&year-from=2016&year-to=2023")
     batch_size = int(Variable.get("batch_size", default_var=20))
     min_year = int(Variable.get("min_year", default_var=2010))
 
