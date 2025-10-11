@@ -8,6 +8,7 @@ from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from airflow.operators.dummy import DummyOperator
 
+from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
 from scripts.cars.auctions.parser_auctions import ParserAuctions
 from telegram_notifier import TelegramNotifier
 from sent_dag_aummary import _send_dag_summary
@@ -32,6 +33,33 @@ def _run_parsing_auction(**context):
     return result
 
 
+def _on_failure_callback(context):
+    dag_id = context["dag"].dag_id
+    task_id = context["task_instance"].task_id
+    execution_date = context["execution_date"]
+    exception = context.get("exception") or Exception("Неизвестная ошибка")
+
+    message = build_failure_message(dag_id, task_id, execution_date, exception)
+    send_telegram_message(message)
+
+
+def _on_success_callback(context):
+    dag_id = context["dag"].dag_id
+    task_id = context["task_instance"].task_id
+    execution_date = context["execution_date"]
+
+    # Получаем результат, если нужно
+    result = context["task_instance"].xcom_pull(task_ids=task_id)
+    extra = f"Обработано лотов: {result.get('total_lots', 'N/A')}" if result else ""
+
+    start = context["dag_run"].start_date
+    end = context["task_instance"].end_date or context["task_instance"].start_date
+    duration = (end - start).total_seconds() if start else 0
+
+    message = build_success_message(dag_id, task_id, execution_date, duration, extra)
+    send_telegram_message(message)
+
+
 with DAG(
         'japan_cars_auction',
         start_date=datetime(2025, 10, 11, tzinfo=local_tz),
@@ -40,11 +68,11 @@ with DAG(
         catchup=False,
         tags=['japan', 'cars', 'auctions'],
 ) as dag:
-    parse_and_load_task = PythonOperator(
+    parse_and_load_auction = PythonOperator(
         task_id='parse_and_load_auction',
         python_callable=_run_parsing_auction,
-        on_failure_callback=TelegramNotifier(),
-        # on_success_callback=TelegramNotifier(),
+        on_failure_callback=_on_failure_callback,
+        on_success_callback=_on_success_callback,
     )
 
     summary_task = PythonOperator(
@@ -54,4 +82,4 @@ with DAG(
         trigger_rule='all_success',
     )
 
-    parse_and_load_task >> summary_task
+    parse_and_load_auction >> summary_task

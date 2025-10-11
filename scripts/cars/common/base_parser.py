@@ -5,7 +5,7 @@ import logging
 
 from bs4 import BeautifulSoup
 
-from cars.common.parser_utils import get_bs4_util
+from scripts.cars.common.parser_utils import get_bs4_util
 
 logger = logging.getLogger(__name__)
 

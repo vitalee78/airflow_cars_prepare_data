@@ -8,6 +8,7 @@ from airflow.operators.python import PythonOperator
 
 from scripts.cars.lots.parser_lots import ParserCars
 from scripts.cars.common.telegram_alerts import send_telegram_message, build_failure_message, build_success_message
+from sent_dag_aummary import _send_dag_summary
 
 local_tz = pendulum.timezone("Europe/Moscow")
 
@@ -56,7 +57,6 @@ def _on_success_callback(context):
     send_telegram_message(message)
 
 
-# DAG
 with DAG(
         'japan_cars_lots',
         start_date=datetime(2025, 10, 9, tzinfo=local_tz),
@@ -64,9 +64,18 @@ with DAG(
         catchup=False,
         tags=['japan', 'cars', 'lots'],
 ) as dag:
-    parse_task = PythonOperator(
+    parse_and_load_lots = PythonOperator(
         task_id='parse_and_load_lots',
         python_callable=_run_parsing_lots,
         on_failure_callback=_on_failure_callback,
         on_success_callback=_on_success_callback,
     )
+
+    summary_task = PythonOperator(
+        task_id='send_dag_summary',
+        python_callable=_send_dag_summary,
+        # Запускать ТОЛЬКО если parse_task успешен
+        trigger_rule='all_success',
+    )
+
+    parse_and_load_lots >> summary_task
