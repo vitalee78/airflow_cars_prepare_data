@@ -3,7 +3,7 @@ from telegram_notifier import TelegramNotifier
 
 
 def _send_dag_summary(**context):
-    parse_result = context["task_instance"].xcom_pull(task_ids="parse_and_load_lots")
+    parse_result = context["task_instance"].xcom_pull(task_ids="parse_auctions_and_save")
 
     dag_id = context["dag"].dag_id
     execution_date = context["execution_date"]

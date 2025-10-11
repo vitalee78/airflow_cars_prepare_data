@@ -71,11 +71,11 @@ with DAG(
         on_success_callback=_on_success_callback,
     )
 
-    summary_task = PythonOperator(
-        task_id='send_dag_summary',
-        python_callable=_send_dag_summary,
-        # Запускать ТОЛЬКО если parse_task успешен
-        trigger_rule='all_success',
-    )
-
-    parse_and_load_lots >> summary_task
+    # summary_task = PythonOperator(
+    #     task_id='send_dag_summary',
+    #     python_callable=_send_dag_summary,
+    #     # Запускать ТОЛЬКО если parse_task успешен
+    #     trigger_rule='all_success',
+    # )
+    #
+    # parse_and_load_lots >> summary_task

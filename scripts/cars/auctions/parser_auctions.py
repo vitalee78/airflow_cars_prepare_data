@@ -142,6 +142,11 @@ class ParserAuctions(BaseParser):
             loader.save_auctions_to_db(df_batch)
 
         logger.info(f"Завершён парсинг. Сохранено {parsed_count} лотов.")
+        return {
+            "total_lots": parsed_count,
+            "status": "success",
+            "message": "Парсинг завершён успешно"
+        }
 
     def parse_info(self, article) -> dict:
         info_div = article.find("div", class_="lot-teaser__info")

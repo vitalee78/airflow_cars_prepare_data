@@ -93,7 +93,7 @@ class ParserCars(BaseParser):
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles[0:3]:
+                for article in articles:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
@@ -150,6 +150,11 @@ class ParserCars(BaseParser):
             loader.save_lots_to_db(df_batch)
 
         logger.info(f"Завершён парсинг. Сохранено {parsed_count} лотов.")
+        return {
+            "total_lots": parsed_count,
+            "status": "success",
+            "message": "Парсинг завершён успешно"
+        }
 
     def parse_info(self, article) -> dict:
         info_div = article.find("div", class_="lot-teaser__info")
