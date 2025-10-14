@@ -20,7 +20,7 @@ class ParserAuctions(BaseParser):
                  brand_model_auc: str = "honda/vezel",
                  option_cars_auc: str = "year-from=2013",
                  batch_size: int = 20,
-                 min_year: int = 2010
+                 min_year: int = 2014
                  ):
         self.MIN_YEAR = min_year
         self.BATCH_SIZE = batch_size
