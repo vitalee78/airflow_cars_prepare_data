@@ -117,7 +117,18 @@ class ParserAuctions(BaseParser):
                             parsed['lot_date'] = None
 
                         a_tag = article.find('a', href=True)
+                        if not a_tag:
+                            logging.error("Не найден тег <a> с href в статье. Невозможно извлечь id_car.")
+                            raise ValueError("Обязательное поле 'id_car' не может быть извлечено: отсутствует ссылка.")
+
+                        href = a_tag['href']
                         parsed['link_source'] = (self.BASE_URL.strip() + a_tag['href']) if a_tag else None
+                        id_car = get_field_util(r'/(\d+)/?$', href, cast=int)
+                        if id_car is None:
+                            logging.error(f"Не удалось извлечь id_car из href: {href}")
+                            raise ValueError(f"Обязательное поле 'id_car' не найдено в ссылке: {href}")
+
+                        parsed['id_car'] = id_car
 
                         batch.append(parsed)
                         parsed_count += 1

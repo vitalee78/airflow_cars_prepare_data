@@ -29,17 +29,17 @@ class LoaderAuctions:
                 conn.execute(
                     text("""
                         INSERT INTO f_auction_cars (
-                            id_brand, id_model, id_carbody,
+                            id_brand, id_model, id_carbody, id_car,
                             year_release, mileage,
                             source_lot_id, link_source, auction_date,
                             created_at, updated_at, status, rate
                         ) VALUES (
-                            :id_brand, :id_model, :id_carbody,
+                            :id_brand, :id_model, :id_carbody, :id_car,
                             :year_release, :mileage,
                             :source_lot_id, :link_source, :auction_date,
                             NOW(), NOW(), 'active', :rate
                         )
-                        ON CONFLICT (source_lot_id) DO UPDATE
+                        ON CONFLICT (id_car) DO UPDATE
                         SET
                             mileage = EXCLUDED.mileage,
                             link_source = EXCLUDED.link_source,
@@ -51,6 +51,7 @@ class LoaderAuctions:
                         "id_brand": brand_id,
                         "id_model": model_id,
                         "id_carbody": carbody_id,
+                        "id_car": row['id_car'],
                         "year_release": row['year'],
                         "mileage": row.get('mileage'),
                         "source_lot_id": row['source_lot_id'],
@@ -64,24 +65,24 @@ class LoaderAuctions:
             #    - были 'active'
             #    - НЕ в списке current_lot_ids
             #    - аукцион уже прошёл (auction_date <= сегодня)
-            if current_lot_ids:
-                conn.execute(
-                    text("""
-                        UPDATE f_auction_cars
-                        SET status = 'sold', updated_at = NOW()
-                        WHERE status = 'active'
-                          AND source_lot_id NOT IN :current_ids
-                          AND auction_date <= CURRENT_DATE
-                    """),
-                    {"current_ids": tuple(current_lot_ids)}
-                )
-            else:
-                # Если парсинг вернул 0 лотов — все активные лоты с прошедших аукционов → sold
-                conn.execute(
-                    text("""
-                        UPDATE f_auction_cars
-                        SET status = 'sold', updated_at = NOW()
-                        WHERE status = 'active'
-                          AND auction_date <= CURRENT_DATE
-                    """)
-                )
+            # if current_lot_ids:
+            #     conn.execute(
+            #         text("""
+            #             UPDATE f_auction_cars
+            #             SET status = 'sold', updated_at = NOW()
+            #             WHERE status = 'active'
+            #               AND source_lot_id NOT IN :current_ids
+            #               AND auction_date <= CURRENT_DATE
+            #         """),
+            #         {"current_ids": tuple(current_lot_ids)}
+            #     )
+            # else:
+            #     # Если парсинг вернул 0 лотов — все активные лоты с прошедших аукционов → sold
+            #     conn.execute(
+            #         text("""
+            #             UPDATE f_auction_cars
+            #             SET status = 'sold', updated_at = NOW()
+            #             WHERE status = 'active'
+            #               AND auction_date <= CURRENT_DATE
+            #         """)
+            #     )
