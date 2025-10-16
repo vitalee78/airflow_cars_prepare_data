@@ -71,7 +71,7 @@ class ParserCars(BaseParser):
         batch = []
         parsed_count = 0
 
-        for page in range(1, total_pages + 1):
+        for page in range(1, total_pages + 1, 10):
             sleep(uniform(0.5, 2.0))
 
             if page == 1:
@@ -93,7 +93,7 @@ class ParserCars(BaseParser):
                     logger.warning(f"На странице {page} не найдено лотов")
                     continue
 
-                for article in articles:
+                for article in articles[0:3]:
                     try:
                         parsed = self.parse_info(article)
                         if not parsed or 'brand' not in parsed:
@@ -139,6 +139,7 @@ class ParserCars(BaseParser):
                         parsed['id_car'] = id_car
 
                         batch.append(parsed)
+                        print(parsed)
                         parsed_count += 1
 
                         # Сохраняем батч
@@ -184,6 +185,9 @@ class ParserCars(BaseParser):
         data['brand'] = parts[0].capitalize()
         data['model'] = parts[1].upper()
 
+        info_sub_title = info_div.find('div', class_='lot-teaser__info__sub-title').text
+        data['equipment'] = str(info_sub_title)
+
         info_list = info_div.find("div", class_='lot-teaser__info__list')
         if not info_list:
             return data
@@ -218,7 +222,7 @@ class ParserCars(BaseParser):
                     pass
             elif key == "Оценка":
                 try:
-                    data['rate'] = float(value.replace(',', '.'))
+                    data['rate'] = str(value.replace(',', '.'))
                 except ValueError:
                     pass
 

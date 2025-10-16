@@ -176,6 +176,9 @@ class ParserAuctions(BaseParser):
         data['brand'] = parts[0].capitalize()
         data['model'] = parts[1].upper()
 
+        info_sub_title = info_div.find('div', class_='lot-teaser__info__sub-title').text
+        data['equipment'] = str(info_sub_title)
+
         info_list = info_div.find("div", class_='lot-teaser__info__list')
         if not info_list:
             return data
@@ -210,7 +213,7 @@ class ParserAuctions(BaseParser):
                     pass
             elif key == "Оценка":
                 try:
-                    data['rate'] = float(value.replace(',', '.'))
+                    data['rate'] = str(value.replace(',', '.'))
                 except ValueError:
                     pass
 

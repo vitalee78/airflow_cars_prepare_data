@@ -28,11 +28,13 @@ class LotsLoader:
                     text("""
                         INSERT INTO f_cars (
                             id_brand, id_model, id_carbody, id_car,
+                            equipment,
                             cost, year_release, rate, mileage,
                             source_lot_id, link_source,
                             created_at, updated_at, lot_date
                         ) VALUES (
                             :id_brand, :id_model, :id_carbody, :id_car,
+                            :equipment,
                             :cost, :year_release, :rate, :mileage,
                             :source_lot_id, :link_source,
                             NOW(), NOW(), :lot_date
@@ -40,7 +42,8 @@ class LotsLoader:
                         ON CONFLICT (id_car) DO UPDATE
                         SET
                             cost = EXCLUDED.cost,
-                            mileage = EXCLUDED.mileage,
+                            equipment = EXCLUDED.equipment,
+                            rate = EXCLUDED.rate,
                             updated_at = NOW()
                         RETURNING id
                     """),
@@ -49,6 +52,7 @@ class LotsLoader:
                         "id_model": model_id,
                         "id_carbody": carbody_id,
                         "id_car": row['id_car'],
+                        "equipment": row['equipment'],
                         "cost": row['cost'],
                         "year_release": row['year'],
                         "rate": row.get('rate'),

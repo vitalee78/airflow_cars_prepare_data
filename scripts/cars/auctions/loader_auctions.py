@@ -30,11 +30,13 @@ class LoaderAuctions:
                     text("""
                         INSERT INTO f_auction_cars (
                             id_brand, id_model, id_carbody, id_car,
+                            equipment,
                             year_release, mileage,
                             source_lot_id, link_source, auction_date,
                             created_at, updated_at, status, rate
                         ) VALUES (
                             :id_brand, :id_model, :id_carbody, :id_car,
+                            :equipment,
                             :year_release, :mileage,
                             :source_lot_id, :link_source, :auction_date,
                             NOW(), NOW(), 'active', :rate
@@ -43,6 +45,7 @@ class LoaderAuctions:
                         SET
                             mileage = EXCLUDED.mileage,
                             link_source = EXCLUDED.link_source,
+                            rate = EXCLUDED.rate,
                             updated_at = NOW(),
                             status = 'active'  -- возвращаем в active, если снова появился
                         RETURNING id
@@ -52,6 +55,7 @@ class LoaderAuctions:
                         "id_model": model_id,
                         "id_carbody": carbody_id,
                         "id_car": row['id_car'],
+                        "equipment": row['equipment'],
                         "year_release": row['year'],
                         "mileage": row.get('mileage'),
                         "source_lot_id": row['source_lot_id'],
