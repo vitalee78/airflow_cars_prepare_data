@@ -45,6 +45,7 @@ class LoaderAuctions:
                         SET
                             mileage = EXCLUDED.mileage,
                             link_source = EXCLUDED.link_source,
+                            equipment = EXCLUDED.equipment,
                             rate = EXCLUDED.rate,
                             updated_at = NOW(),
                             status = 'active'  -- возвращаем в active, если снова появился
