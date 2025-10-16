@@ -27,17 +27,17 @@ class LotsLoader:
                 conn.execute(
                     text("""
                         INSERT INTO f_cars (
-                            id_brand, id_model, id_carbody,
+                            id_brand, id_model, id_carbody, id_car,
                             cost, year_release, rate, mileage,
                             source_lot_id, link_source,
                             created_at, updated_at, lot_date
                         ) VALUES (
-                            :id_brand, :id_model, :id_carbody,
+                            :id_brand, :id_model, :id_carbody, :id_car,
                             :cost, :year_release, :rate, :mileage,
                             :source_lot_id, :link_source,
                             NOW(), NOW(), :lot_date
                         )
-                        ON CONFLICT (source_lot_id) DO UPDATE
+                        ON CONFLICT (id_car) DO UPDATE
                         SET
                             cost = EXCLUDED.cost,
                             mileage = EXCLUDED.mileage,
@@ -48,6 +48,7 @@ class LotsLoader:
                         "id_brand": brand_id,
                         "id_model": model_id,
                         "id_carbody": carbody_id,
+                        "id_car": row['id_car'],
                         "cost": row['cost'],
                         "year_release": row['year'],
                         "rate": row.get('rate'),
