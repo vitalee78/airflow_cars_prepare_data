@@ -57,10 +57,12 @@ def clean_equipment(text: str) -> str | None:
     if not text:
         return None
 
+    # Паттерн для обнаружения стоп-слов/фраз
     stop_pattern = re.compile(
+        r'[а-яА-ЯёЁ,]|'
         r'\b[Hh]onda\b|'  # Honda (в любом месте)
         r'\.[pP][lL][aA][yY]\s+[pP]ackage|'  # .PLaY package
-        r'\.{2,}\s*[pP]ackage', # .... package, ..... package и т.п.
+        r'\.{2,}\s*[pP]ackage',  # .... package и т.п.
         re.IGNORECASE
     )
 
