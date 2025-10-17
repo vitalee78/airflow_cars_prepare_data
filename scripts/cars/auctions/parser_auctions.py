@@ -132,7 +132,6 @@ class ParserAuctions(BaseParser):
 
                         batch.append(parsed)
                         parsed_count += 1
-                        print(parsed)
 
                         # Сохраняем батч
                         if len(batch) >= self.BATCH_SIZE:
