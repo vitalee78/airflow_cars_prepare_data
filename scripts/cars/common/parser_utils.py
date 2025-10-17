@@ -45,3 +45,28 @@ def should_skip_by_year(year: int | None, min_year: int, title: str = "Без н
         print(f"Пропущен лот с годом {year} (< {min_year}): {title}")
         return True
     return False
+
+
+def clean_equipment(text: str) -> str | None:
+    """
+    Очищает строку equipment:
+    - Если есть 'e:HEV Z.PLaY package' (в любом регистре) → возвращает None.
+    - Если есть слово 'Honda', но НЕ в самом начале → обрезает строку до него.
+    - Иначе возвращает исходную строку.
+    """
+    if not text:
+        return None
+
+    stop_pattern = re.compile(
+        r'\b[Hh]onda\b|'  # Honda (в любом месте)
+        r'\.[pP][lL][aA][yY]\s+[pP]ackage|'  # .PLaY package
+        r'\.{2,}\s*[pP]ackage', # .... package, ..... package и т.п.
+        re.IGNORECASE
+    )
+
+    match = stop_pattern.search(text)
+    if match:
+        cleaned = text[:match.start()].rstrip(' .')
+        return cleaned if cleaned else None
+    else:
+        return text.rstrip(' .')

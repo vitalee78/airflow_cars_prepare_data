@@ -9,7 +9,7 @@ import pandas as pd
 
 from scripts.cars.auctions.loader_auctions import LoaderAuctions
 from scripts.cars.common.base_parser import BaseParser
-from scripts.cars.common.parser_utils import get_field_util, should_skip_by_year
+from scripts.cars.common.parser_utils import get_field_util, should_skip_by_year, clean_equipment
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,7 @@ class ParserAuctions(BaseParser):
 
                         batch.append(parsed)
                         parsed_count += 1
+                        print(parsed)
 
                         # Сохраняем батч
                         if len(batch) >= self.BATCH_SIZE:
@@ -176,8 +177,12 @@ class ParserAuctions(BaseParser):
         data['brand'] = parts[0].capitalize()
         data['model'] = parts[1].upper()
 
-        info_sub_title = info_div.find('div', class_='lot-teaser__info__sub-title').text
-        data['equipment'] = str(info_sub_title)
+        info_sub_title_elem = info_div.find('div', class_='lot-teaser__info__sub-title')
+        if info_sub_title_elem:
+            raw_text = info_sub_title_elem.get_text(strip=True)
+            data['equipment'] = clean_equipment(raw_text)
+        else:
+            data['equipment'] = None
 
         info_list = info_div.find("div", class_='lot-teaser__info__list')
         if not info_list:
