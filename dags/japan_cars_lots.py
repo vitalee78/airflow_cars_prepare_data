@@ -1,28 +1,32 @@
-# dags/japan_cars_lots.py
-
 from datetime import datetime
+
 import pendulum
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 
-from scripts.cars.lots.parser_lots import ParserCars
 from scripts.cars.common.telegram_alerts import send_telegram_message, build_failure_message, build_success_message
-from sent_dag_aummary import _send_dag_summary
+from scripts.cars.lots.parser_lots import ParserCars
 
 local_tz = pendulum.timezone("Europe/Moscow")
 
 
 def _run_parsing_lots():
-    brand_model = Variable.get("lot_brand_model", default_var="honda/vezel")
-    option_cars = Variable.get("lot_option_cars", default_var="rate-4=4&rate-4-5=4.5&year-from=2016&year-to=2023")
+    brand_models = Variable.get("tokidoki_brand_models", deserialize_json=True)
+    option_cars_list = Variable.get("tokidoki_option_cars", deserialize_json=True)
     batch_size = int(Variable.get("batch_size", default_var=20))
     min_year = int(Variable.get("min_year", default_var=2010))
 
+    if not isinstance(brand_models, list) or not isinstance(option_cars_list, list):
+        raise ValueError("Переменные tokidoki_brand_models и tokidoki_option_cars должны быть списками")
+
+    if len(brand_models) != len(option_cars_list):
+        raise ValueError("Списки brand_models и option_cars_list должны быть одинаковой длины")
+
     parser = ParserCars(
         airflow_mode=True,
-        brand_model=brand_model,
-        option_cars=option_cars,
+        brand_models=brand_models,
+        option_cars_list=option_cars_list,
         batch_size=batch_size,
         min_year=min_year
     )
@@ -70,12 +74,3 @@ with DAG(
         on_failure_callback=_on_failure_callback,
         on_success_callback=_on_success_callback,
     )
-
-    # summary_task = PythonOperator(
-    #     task_id='send_dag_summary',
-    #     python_callable=_send_dag_summary,
-    #     # Запускать ТОЛЬКО если parse_task успешен
-    #     trigger_rule='all_success',
-    # )
-    #
-    # parse_and_load_lots >> summary_task
