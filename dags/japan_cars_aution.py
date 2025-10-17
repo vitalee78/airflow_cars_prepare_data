@@ -17,15 +17,15 @@ local_tz = pendulum.timezone("Europe/Moscow")
 
 
 def _run_parsing_auction(**context):
-    brand_model_auc = Variable.get("auc_brand_model", default_var="honda/vezel")
-    option_cars_auc = Variable.get("auc_option_cars", default_var="year-from=2013")
+    brand_models = Variable.get("tokidoki_auc_brand_models", deserialize_json=True)
+    option_cars_list = Variable.get("tokidoki_auc_option_cars", deserialize_json=True)
     batch_size = int(Variable.get("batch_size", default_var=20))
-    min_year = int(Variable.get("min_year", default_var=2010))
+    min_year = int(Variable.get("min_year_auc", default_var=2014))
 
     parser = ParserAuctions(
         airflow_mode=True,
-        brand_model_auc=brand_model_auc,
-        option_cars_auc=option_cars_auc,
+        brand_models=brand_models,
+        option_cars_list=option_cars_list,
         batch_size=batch_size,
         min_year=min_year
     )

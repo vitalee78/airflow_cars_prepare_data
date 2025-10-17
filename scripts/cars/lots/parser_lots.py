@@ -77,7 +77,7 @@ class ParserCars(BaseParser):
             loader = LotsLoader(airflow_mode=self.airflow_mode)
             batch = []
 
-            for page in range(1, total_pages + 1, 15):
+            for page in range(1, total_pages + 1):
                 sleep(uniform(0.5, 2.0))
 
                 if page == 1:
@@ -99,7 +99,7 @@ class ParserCars(BaseParser):
                         logger.warning(f"На странице {page} не найдено лотов для {brand_model}")
                         continue
 
-                    for article in articles[0:3]:
+                    for article in articles:
                         try:
                             parsed = self.parse_info(article)
                             if not parsed or 'brand' not in parsed:
@@ -141,7 +141,6 @@ class ParserCars(BaseParser):
                                 continue
 
                             parsed['id_car'] = id_car
-                            print(parsed)
 
                             batch.append(parsed)
                             total_parsed += 1
