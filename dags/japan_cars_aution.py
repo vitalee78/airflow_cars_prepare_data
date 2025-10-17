@@ -48,9 +48,21 @@ def _on_success_callback(context):
     task_id = context["task_instance"].task_id
     execution_date = context["execution_date"]
 
-    # Получаем результат, если нужно
-    result = context["task_instance"].xcom_pull(task_ids=task_id)
-    extra = f"Обработано лотов: {result.get('total_lots', 'N/A')}" if result else ""
+    # Получаем return_value из XCom
+    result = context["task_instance"].xcom_pull(task_ids=task_id, key="return_value")
+
+    if not result or not isinstance(result, dict):
+        extra = "Данные о результатах отсутствуют."
+    else:
+        total = result.get("total_lots", 0)
+        details = result.get("details", [])
+        detail_lines = []
+        for item in details:
+            brand = item.get("brand_model", "N/A")
+            count = item.get("lots_count", 0)
+            detail_lines.append(f"• {brand}: {count} лотов")
+        details_text = "\n".join(detail_lines) if detail_lines else "Нет деталей"
+        extra = f"Всего обработано лотов: {total}\nПо брендам:\n{details_text}"
 
     start = context["dag_run"].start_date
     end = context["task_instance"].end_date or context["task_instance"].start_date
