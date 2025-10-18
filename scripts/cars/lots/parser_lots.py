@@ -25,9 +25,9 @@ class ParserCars(BaseParser):
         self.MIN_YEAR = min_year
         self.BATCH_SIZE = batch_size
         self.airflow_mode = airflow_mode
-        self.brand_models = brand_models if brand_models is not None else ["honda/vezel"]
+        self.brand_models = brand_models if brand_models is not None else ["toyota/c-hr"]
         self.option_cars_list = option_cars_list if option_cars_list is not None else [
-            "rate-4=4&year-from=2020&year-to=2023"]
+            "year-from=2016"]
         self.BASE_URL = "https://tokidoki.su"
         self.HEADERS = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -76,7 +76,7 @@ class ParserCars(BaseParser):
             loader = LotsLoader(airflow_mode=self.airflow_mode)
             batch = []
 
-            for page in range(1, total_pages + 1, 15):
+            for page in range(1, total_pages + 1):
                 sleep(uniform(0.5, 2.0))
 
                 if page == 1:
@@ -98,7 +98,7 @@ class ParserCars(BaseParser):
                         logger.warning(f"На странице {page} не найдено лотов для {brand_model}")
                         continue
 
-                    for article in articles[0:2]:
+                    for article in articles:
                         try:
                             parsed = self.parse_info(article)
                             if not parsed or 'brand' not in parsed:
@@ -247,7 +247,6 @@ class ParserCars(BaseParser):
         lot_number = ""
         lot_date = ""
 
-        # Найдём лот
         for line in lines:
             if line.startswith("Лот "):
                 match = re.search(r'Лот\s+(\d+)', line)
@@ -265,6 +264,5 @@ class ParserCars(BaseParser):
 
 
 if __name__ == '__main__':
-    # Для локального запуска
     parser = ParserCars(airflow_mode=False)
     parser.parse_tokidoki_and_save()

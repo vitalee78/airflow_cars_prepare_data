@@ -47,4 +47,3 @@ class LotsLoader:
                     text("SELECT public.fn_upsert_lots_cars(:data)"),
                     {"data": json_str}
                 )
-        print(records)
