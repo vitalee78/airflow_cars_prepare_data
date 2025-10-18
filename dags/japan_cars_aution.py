@@ -13,7 +13,7 @@ from scripts.cars.auctions.parser_auctions import ParserAuctions
 from telegram_notifier import TelegramNotifier
 from sent_dag_aummary import _send_dag_summary
 
-local_tz = pendulum.timezone("Europe/Moscow")
+local_tz = pendulum.timezone("Asia/Novosibirsk")
 
 
 def _run_parsing_auction(**context):

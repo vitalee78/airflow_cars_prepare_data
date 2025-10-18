@@ -8,7 +8,7 @@ from airflow.operators.python import PythonOperator
 from scripts.cars.common.telegram_alerts import send_telegram_message, build_failure_message, build_success_message
 from scripts.cars.lots.parser_lots import ParserCars
 
-local_tz = pendulum.timezone("Europe/Moscow")
+local_tz = pendulum.timezone("Asia/Novosibirsk")
 
 
 def _run_parsing_lots():
@@ -49,7 +49,6 @@ def _on_success_callback(context):
     task_id = context["task_instance"].task_id
     execution_date = context["execution_date"]
 
-    # Получаем результат, если нужно
     result = context["task_instance"].xcom_pull(task_ids=task_id)
     extra = f"Обработано лотов: {result.get('total_lots', 'N/A')}" if result else ""
 
