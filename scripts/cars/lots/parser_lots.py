@@ -64,7 +64,6 @@ class ParserCars(BaseParser):
 
         for brand_model, option_cars in zip(self.brand_models, self.option_cars_list):
             logger.info(f"Начинаем парсинг для: {brand_model} с опциями: {option_cars}")
-            print(f"Начинаем парсинг для: {brand_model} с опциями: {option_cars}")
             section_path = f"/stat/{brand_model}/?{option_cars}"
             base_url = self.BASE_URL + section_path
 
@@ -168,7 +167,7 @@ class ParserCars(BaseParser):
             results.append({
                 "brand_model": brand_model,
                 "option_cars": option_cars,
-                "lots_count": len(batch) + (total_parsed - len(batch))  # можно улучшить подсчёт
+                "lots_count": len(batch) + (total_parsed - len(batch))
             })
 
         logger.info(f"Парсинг завершён. Всего сохранено лотов: {total_parsed}")
