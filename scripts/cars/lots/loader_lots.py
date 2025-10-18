@@ -1,8 +1,10 @@
+import json
+
 import pandas as pd
 from sqlalchemy import text
 
-from scripts.cars.reference.loader import ReferenceLoader
 from scripts.cars.common.db_postgres import get_engine
+from scripts.cars.reference.loader import ReferenceLoader
 
 
 class LotsLoader:
@@ -16,60 +18,33 @@ class LotsLoader:
         ref = ReferenceLoader(airflow_mode=self.airflow_mode)
         engine = get_engine(airflow_mode=self.airflow_mode)
 
-        with engine.begin() as conn:
-            for _, row in df.iterrows():
-                # 1. Получаем или создаём справочники
-                brand_id = ref.get_or_create_brand(row['brand'])
-                model_id = ref.get_or_create_model(brand_id, row['model'])
-                carbody_id = ref.get_or_create_carbody(model_id, row.get('carbody'))
+        records = []
+        for _, row in df.iterrows():
+            # 1. Получаем или создаём справочники
+            brand_id = ref.get_or_create_brand(row['brand'])
+            model_id = ref.get_or_create_model(brand_id, row['model'])
+            carbody_id = ref.get_or_create_carbody(model_id, row.get('carbody'))
 
-                # 2. Вставка или обновление лота в f_cars
+            records.append({
+                "id_brand": brand_id,
+                "id_model": model_id,
+                "id_carbody": carbody_id,
+                "id_car": row['id_car'],
+                "cost": row.get('cost'),
+                "year_release": row['year'],
+                "rate": row.get('rate'),
+                "mileage": row.get('mileage'),
+                "source_lot_id": row['source_lot_id'],
+                "link_source": row['link_source'],
+                "auction_date": str(row['lot_date']),
+                "equipment": row.get('equipment')
+            })
+
+            json_str = json.dumps(records, ensure_ascii=False)
+
+            with engine.begin() as conn:
                 conn.execute(
-                    text("""
-                        INSERT INTO f_cars (
-                            id_brand, id_model, id_carbody, id_car,
-                            equipment,
-                            cost, year_release, rate, mileage,
-                            source_lot_id, link_source,
-                            created_at, updated_at, lot_date
-                        ) VALUES (
-                            :id_brand, :id_model, :id_carbody, :id_car,
-                            :equipment,
-                            :cost, :year_release, :rate, :mileage,
-                            :source_lot_id, :link_source,
-                            NOW(), NOW(), :lot_date
-                        )
-                        ON CONFLICT (id_car) DO UPDATE
-                        SET
-                            cost = EXCLUDED.cost,
-                            equipment = EXCLUDED.equipment,
-                            rate = EXCLUDED.rate,
-                            updated_at = NOW()
-                        RETURNING id
-                    """),
-                    {
-                        "id_brand": brand_id,
-                        "id_model": model_id,
-                        "id_carbody": carbody_id,
-                        "id_car": row['id_car'],
-                        "equipment": row['equipment'],
-                        "cost": row['cost'],
-                        "year_release": row['year'],
-                        "rate": row.get('rate'),
-                        "mileage": row.get('mileage'),
-                        "source_lot_id": row['source_lot_id'],
-                        "link_source": row['link_source'],
-                        "lot_date": row['lot_date']
-                    }
-                ).fetchone()
-
-                # car_id = result[0]
-
-                # 3. Добавляем запись в историю цен
-                # conn.execute(
-                #     text("""
-                #         INSERT INTO f_cost_hist (car_id, cost, cost_date)
-                #         VALUES (:car_id, :cost, NOW())
-                #     """),
-                #     {"car_id": car_id, "cost": row['cost']}
-                # )
+                    text("SELECT public.fn_upsert_lots_cars(:data)"),
+                    {"data": json_str}
+                )
+        print(records)
