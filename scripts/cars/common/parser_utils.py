@@ -26,6 +26,7 @@ def get_field_util(pattern: str, text: str, cast=str):
     """Извлекает значение по регулярному выражению и приводит к типу"""
     match = re.search(pattern, text)
     if match:
+
         try:
             return cast(match.group(1))
         except (ValueError, TypeError):
