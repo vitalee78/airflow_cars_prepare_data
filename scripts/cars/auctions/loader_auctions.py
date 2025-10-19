@@ -1,10 +1,14 @@
 import json
+import logging
+import sys
 
 import pandas as pd
 from sqlalchemy import text
 
 from scripts.cars.common.db_postgres import get_engine
 from scripts.cars.reference.loader import ReferenceLoader
+
+logger = logging.getLogger(__name__)
 
 
 class LoaderAuctions:
@@ -41,8 +45,18 @@ class LoaderAuctions:
 
         json_str = json.dumps(records, ensure_ascii=False)
 
+        try:
+            json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logging.error(f"Invalid JSON input: {e}")
+            sys.exit(1)
+
         with engine.begin() as conn:
-            conn.execute(
-                text("SELECT public.fn_upsert_auction_cars(:data)"),
-                {"data": json_str}
-            )
+            try:
+                conn.execute(
+                    text("SELECT public.fn_upsert_auction_cars(:data)"),
+                    {"data": json_str}
+                )
+            except Exception as e:
+                logging.error(f"Database error: {e}")
+                sys.exit(1)
