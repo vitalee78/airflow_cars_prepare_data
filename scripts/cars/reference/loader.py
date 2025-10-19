@@ -20,26 +20,12 @@ class ReferenceLoader:
 
         with self.engine.begin() as conn:
             result = conn.execute(
-                text("""
-                    INSERT INTO ref_brands (brand)
-                    VALUES (:brand)
-                    ON CONFLICT (brand) DO NOTHING
-                    RETURNING id_brand
-                """),
+                text("SELECT public.fn_get_or_insert_brand(:brand)"),
                 {"brand": brand_name}
-            ).fetchone()
+            ).scalar()
 
-            if result:
-                brand_id = result[0]
-            else:
-                result = conn.execute(
-                    text("SELECT id_brand FROM ref_brands WHERE brand = :brand"),
-                    {"brand": brand_name}
-                ).fetchone()
-                brand_id = result[0]
-
-        self._brand_cache[brand_name] = brand_id
-        return brand_id
+        self._brand_cache[brand_name] = result
+        return result
 
     def get_or_create_model(self, brand_id: int, model_name: str) -> int:
         key = (brand_id, model_name)
@@ -48,30 +34,12 @@ class ReferenceLoader:
 
         with self.engine.begin() as conn:
             result = conn.execute(
-                text("""
-                    INSERT INTO ref_models (id_brand, model)
-                    VALUES (:brand_id, :model)
-                    ON CONFLICT (id_brand, model) DO NOTHING
-                    RETURNING id_model
-                """),
+                text("SELECT public.fn_get_or_insert_model(:brand_id, :model)"),
                 {"brand_id": brand_id, "model": model_name}
-            ).fetchone()
+            ).scalar()
 
-            if result:
-                model_id = result[0]
-            else:
-                result = conn.execute(
-                    text("""
-                        SELECT id_model
-                        FROM ref_models
-                        WHERE id_brand = :brand_id AND model = :model
-                    """),
-                    {"brand_id": brand_id, "model": model_name}
-                ).fetchone()
-                model_id = result[0]
-
-        self._model_cache[key] = model_id
-        return model_id
+        self._model_cache[key] = result
+        return result
 
     def get_or_create_carbody(self, model_id: int, carbody: str | None) -> int | None:
         if carbody is None:
@@ -83,36 +51,15 @@ class ReferenceLoader:
             return None
         carbody_upper = carbody_clean.upper()
 
-
-        key = (model_id, carbody)
+        key = (model_id, carbody_upper)
         if key in self._carbody_cache:
             return self._carbody_cache[key]
 
         with self.engine.begin() as conn:
             result = conn.execute(
-                text("""
-                    INSERT INTO ref_carbodies (id_model, carbody)
-                    VALUES (:model_id, :carbody)
-                    ON CONFLICT (id_model, carbody) DO NOTHING
-                    RETURNING id_carbody
-                """),
+                text("SELECT public.fn_get_or_insert_carbody(:model_id, :carbody)"),
                 {"model_id": model_id, "carbody": carbody_upper}
-            ).fetchone()
+            ).scalar()
 
-            if result:
-                carbody_id = result[0]
-            else:
-                result = conn.execute(
-                    text("""
-                        SELECT id_carbody
-                        FROM ref_carbodies
-                        WHERE id_model = :model_id AND carbody = :carbody
-                    """),
-                    {"model_id": model_id, "carbody": carbody_upper}
-                ).fetchone()
-                if not result:
-                    raise RuntimeError(f"Carbody not found after insert: {model_id}, {carbody_upper}")
-                carbody_id = result[0]
-
-        self._carbody_cache[key] = carbody_id
-        return carbody_id
+        self._carbody_cache[key] = result
+        return result
