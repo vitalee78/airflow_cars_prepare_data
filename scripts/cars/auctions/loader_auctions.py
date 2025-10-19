@@ -5,7 +5,7 @@ import sys
 import pandas as pd
 from sqlalchemy import text
 
-from scripts.cars.common.db_postgres import get_engine
+from scripts.cars.common.db_postgres import get_engine, check_isvalid_json
 from scripts.cars.reference.loader import ReferenceLoader
 
 logger = logging.getLogger(__name__)
@@ -45,11 +45,7 @@ class LoaderAuctions:
 
         json_str = json.dumps(records, ensure_ascii=False)
 
-        try:
-            json.loads(json_str)
-        except json.JSONDecodeError as e:
-            logging.error(f"Invalid JSON input: {e}")
-            sys.exit(1)
+        check_isvalid_json(json_str)
 
         with engine.begin() as conn:
             try:

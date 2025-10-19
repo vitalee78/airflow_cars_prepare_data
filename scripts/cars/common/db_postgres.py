@@ -1,13 +1,18 @@
 # scripts/db_postgres.py
 
 import configparser
+import json
+import logging
 import os
 import platform
+import sys
 from typing import Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
+
+logger = logging.getLogger(__name__)
 
 
 def _get_engine_from_config() -> Engine:
@@ -70,3 +75,11 @@ def get_session(airflow_mode: Optional[bool] = None):
     engine = get_engine(airflow_mode=airflow_mode)
     Session = sessionmaker(bind=engine)
     return Session()
+
+
+def check_isvalid_json(json_str):
+    try:
+        json.loads(json_str)
+    except json.JSONDecodeError as e:
+        logging.error(f"Invalid JSON input: {e}")
+        sys.exit(1)
