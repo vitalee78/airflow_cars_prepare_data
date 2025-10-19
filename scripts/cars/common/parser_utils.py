@@ -2,6 +2,8 @@
 
 import logging
 import re
+import sys
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -17,7 +19,7 @@ def get_bs4_util(url: str, headers: dict = None, timeout: int = 10) -> Beautiful
         return BeautifulSoup(response.text, 'html.parser')
     except Exception as e:
         logger.error(f"Ошибка при загрузке {url}: {e}")
-        raise
+        sys.exit(1)
 
 
 def get_field_util(pattern: str, text: str, cast=str):
