@@ -37,7 +37,7 @@ with DAG(
         task_id='delete_old_auction_lots',
         postgres_conn_id='japan_cars_db',
         sql="""
-            CALL public.sp_delete_old_auction_cars();
+            CALL fact.sp_delete_old_auction_cars();
         """,
         on_failure_callback=_on_failure_callback,
     )
