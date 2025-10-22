@@ -7,6 +7,7 @@ import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from scripts.cars.ml.predict import Predict
+from scripts.cars.ml.train_model import Train
 
 from cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
 
@@ -28,9 +29,6 @@ default_args = {
 def _train_model_task():
     """Задача обучения модели"""
     try:
-        # Импортируем здесь, чтобы избежать проблем с зависимостями
-        from scripts.cars.ml.train_model import Train
-
         logger.info("Starting model training...")
         train = Train(airflow_mode=True,)
         train.train_and_evaluate()
@@ -45,8 +43,6 @@ def _train_model_task():
 def _predict_prices_task():
     """Задача прогнозирования цен"""
     try:
-        from scripts.cars.ml.predict import Predict
-
         config = {
             'start_price_ratio': 0.7,
             'min_start_price': 100000,
