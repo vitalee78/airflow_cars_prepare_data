@@ -6,7 +6,7 @@ from pathlib import Path
 import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from scripts.cars.ml.predict import PredictModel
+from scripts.cars.ml.predict import Predict
 
 from cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
 
