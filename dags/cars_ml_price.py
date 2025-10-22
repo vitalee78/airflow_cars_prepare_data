@@ -87,15 +87,15 @@ def _on_success_callback(context):
     if not result or not isinstance(result, dict):
         extra = "Данные о результатах предсказаний отсутствуют."
     else:
-        total = result.get("count_lots", 0)
         details = result.get("details", [])
         detail_lines = []
         for item in details:
             feature = item.get("feature_count", "N/A")
             count = item.get("count_lots", 0)
-            detail_lines.append(f"• {feature}: {count} признаков")
+            detail_lines.append(f"• Лотов: {count}")
+            detail_lines.append(f"• Признаков: {feature}")
         details_text = "\n".join(detail_lines) if detail_lines else "Нет деталей"
-        extra = f"Всего обработано лотов: {total}\nПризнаков:\n{details_text}"
+        extra = f"Итого:\n{details_text}"
 
     start = context["dag_run"].start_date
     end = context["task_instance"].end_date or context["task_instance"].start_date
