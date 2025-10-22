@@ -95,7 +95,7 @@ def _on_success_callback(context):
             detail_lines.append(f"• Лотов: {count}")
             detail_lines.append(f"• Признаков: {feature}")
         details_text = "\n".join(detail_lines) if detail_lines else "Нет деталей"
-        extra = f"Итого:\n{details_text}"
+        extra = f"\n{details_text}"
 
     start = context["dag_run"].start_date
     end = context["task_instance"].end_date or context["task_instance"].start_date
