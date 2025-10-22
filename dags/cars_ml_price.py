@@ -105,7 +105,7 @@ with DAG(
         tags=['ml', 'mart', 'car_prices', 'auction'],
 ) as dag:
     train_model = PythonOperator(
-        task_id='train_model ',
+        task_id='train_model',
         python_callable=_train_model_task,
         on_failure_callback=_on_failure_callback,
     )
