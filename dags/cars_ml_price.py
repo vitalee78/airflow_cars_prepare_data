@@ -56,7 +56,7 @@ def _predict_prices_task():
         }
 
         logger.info("Starting price predictions...")
-        predict = Predict()
+        predict = Predict(airflow_mode=True)
         results = predict.predict_auction_prices(
             config=config,
             save_to_db=True,
