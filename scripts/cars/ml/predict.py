@@ -1,9 +1,10 @@
 # scripts/cars/ml/predict.py
 import logging
 import pickle
+import sys
 import warnings
 from pathlib import Path
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -55,12 +56,12 @@ class Predict:
             return pickle.load(f)
 
     def prepare_prediction_features(
-        self,
-        df: pd.DataFrame,
-        numerical_features: List[str],
-        categorical_features: List[str],
-        encoder: OneHotEncoder,
-        all_feature_columns: List[str]
+            self,
+            df: pd.DataFrame,
+            numerical_features: List[str],
+            categorical_features: List[str],
+            encoder: OneHotEncoder,
+            all_feature_columns: List[str]
     ) -> pd.DataFrame:
         """Подготовка признаков для предикта (аналогично обучению)"""
         # Числовые признаки
@@ -118,16 +119,18 @@ class Predict:
 
         print("\n=== ПРОГНОЗЫ ===")
         for _, row in filtered.iterrows():
-            print(f"{row['car_info']} → прогноз: {row['predicted_price']:,.0f} руб, старт: {row['start_price']:,.0f} руб")
+            print(
+                f"{row['car_info']} → прогноз: {row['predicted_price']:,.0f} руб, старт: {row['start_price']:,.0f} руб")
 
     def predict_auction_prices(
-        self,
-        config: Optional[dict] = None,
-        save_to_db: bool = False,
-        show_display: bool = False
-    ) -> Optional[pd.DataFrame]:
+            self,
+            config: Optional[dict] = None,
+            save_to_db: bool = False,
+            show_display: bool = False
+    ) -> Optional[Dict[str, Any]]:
         """Прогнозирование цен для будущих аукционов"""
         # Обновляем конфиг
+        results_info = []
         current_config = AUCTION_CONFIG.copy()
         if config:
             current_config.update(config)
@@ -206,43 +209,16 @@ class Predict:
             )
 
         logger.info("Прогнозирование завершено успешно")
-        return df
 
+        results_info.append({
+            "count_lots": len(df),
+            "feature_count": len(all_feature_columns)
+        })
 
-    def fix_zero_prices(self, df):
-        """Исправление нулевых и отсутствующих стартовых цен"""
-
-        if len(df) == 0:
-            return df
-
-        # Заменяем нули и NaN на осмысленные значения
-        zero_price_mask = (df['start_price'].isna()) | (df['start_price'] <= 0)
-
-        if zero_price_mask.any():
-            logger.info(f"Обнаружено {zero_price_mask.sum()} лотов с нулевой или отсутствующей стартовой ценой")
-
-            # Безопасно вычисляем медианную рыночную цену
-            market_prices = pd.to_numeric(df['market_avg_price_3m'], errors='coerce').dropna()
-            if len(market_prices) > 0:
-                median_market_price = market_prices.median()
-                replacement_price = median_market_price * 0.7
-                df.loc[zero_price_mask, 'start_price'] = replacement_price
-                logger.info(f"Заменяем нулевые цены на {replacement_price:,.0f} руб (70% от медианной рыночной)")
-            else:
-                # Если нет рыночных данных, используем прогнозируемые цены
-                predicted_prices = pd.to_numeric(df['predicted_price'], errors='coerce').dropna()
-                if len(predicted_prices) > 0:
-                    median_predicted = predicted_prices.median()
-                    replacement_price = median_predicted * 0.7
-                    df.loc[zero_price_mask, 'start_price'] = replacement_price
-                    logger.info(f"Заменяем нулевые цены на {replacement_price:,.0f} руб (70% от медианной прогнозируемой)")
-                else:
-                    # Запасной вариант
-                    df.loc[zero_price_mask, 'start_price'] = 100000
-                    logger.info("Заменяем нулевые цены на 100,000 руб (значение по умолчанию)")
-
-        return df
-
+        return {
+            "status": "success",
+            "details": results_info
+        }
 
     def ensure_numeric_types(self, df):
         """Убедиться, что числовые колонки имеют правильный тип"""
@@ -254,7 +230,6 @@ class Predict:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
         return df
-
 
     def calculate_price_difference(self, results):
         """Безопасное вычисление разницы в процентах"""
@@ -276,7 +251,6 @@ class Predict:
             results['price_difference_pct'] = 0
 
         return results
-
 
     def calculate_start_prices(self, df, config):
         """Расчет стартовых цен согласно конфигурации"""
@@ -308,7 +282,6 @@ class Predict:
         logger.info(f"  Средняя стартовая цена: {df['start_price'].mean():,.0f} руб")
 
         return df
-
 
     def prepare_prediction_features(self, df, numerical_features, categorical_features, encoder, all_feature_columns):
         """Подготовка признаков для прогнозирования"""
@@ -372,47 +345,6 @@ class Predict:
         logger.info(f"Подготовлено признаков: {X_processed.shape[1]}")
         return X_processed
 
-
-    def safe_min(self, series):
-        """Безопасное вычисление минимума"""
-        if len(series) == 0:
-            return 0
-        series_clean = pd.to_numeric(series, errors='coerce').dropna()
-        if len(series_clean) == 0:
-            return 0
-        return series_clean.min()
-
-
-    def safe_max(self, series):
-        """Безопасное вычисление максимума"""
-        if len(series) == 0:
-            return 0
-        series_clean = pd.to_numeric(series, errors='coerce').dropna()
-        if len(series_clean) == 0:
-            return 0
-        return series_clean.max()
-
-
-    def safe_mean(self, series):
-        """Безопасное вычисление среднего"""
-        if len(series) == 0:
-            return 0
-        series_clean = pd.to_numeric(series, errors='coerce').dropna()
-        if len(series_clean) == 0:
-            return 0
-        return series_clean.mean()
-
-
-    def safe_median(self, series):
-        """Безопасное вычисление медианы"""
-        if len(series) == 0:
-            return 0
-        series_clean = pd.to_numeric(series, errors='coerce').dropna()
-        if len(series_clean) == 0:
-            return 0
-        return series_clean.median()
-
-
     def calculate_confidence(self, predictions, df):
         """Расчет доверительной оценки прогноза"""
         confidence_scores = []
@@ -447,7 +379,6 @@ class Predict:
                 confidence_scores.append(0.1)
 
         return confidence_scores
-
 
     def display_results(self, df, min_year=None, max_year=None, top_count=None):
         """Компактный вывод по брендам с фильтрацией по году выпуска"""
@@ -518,7 +449,6 @@ class Predict:
             print(f"Средняя выгода: +{profitable_df['price_difference_pct'].mean():.1f}%")
             print(f"Медианная выгода: +{profitable_df['price_difference_pct'].median():.1f}%")
 
-
     def save_predictions_to_db(self, df, engine):
         try:
             # Используем raw connection для полного контроля
@@ -573,7 +503,6 @@ class Predict:
             logger.error(f"❌ Ошибка при сохранении прогнозов в БД: {e}")
             sys.exit(1)
 
-
     def load_current_predictions(self, brand=None, min_confidence=0.0):
         """Загрузка текущих прогнозов из БД"""
 
@@ -614,4 +543,4 @@ if __name__ == "__main__":
         'filters': {'min_year': 2016, 'max_year': 2018, 'top': 3}
     }
     predict = Predict(airflow_mode=False)
-    predict.predict_auction_prices(config, save_to_db=True, show_display=True)
+    predict.predict_auction_prices(config, save_to_db=False, show_display=False)

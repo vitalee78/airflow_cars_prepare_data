@@ -30,7 +30,7 @@ def _train_model_task():
     """Задача обучения модели"""
     try:
         logger.info("Starting model training...")
-        train = Train(airflow_mode=True,)
+        train = Train(airflow_mode=True, )
         train.train_and_evaluate()
         logger.info("Model training completed successfully")
 
@@ -63,7 +63,10 @@ def _predict_prices_task():
             show_display=False
         )
 
-        logger.info(f"Price predictions completed. Processed {len(results) if results is not None else 0} cars")
+        if results:
+            logger.info(f"Price predictions completed. Processed {results['count_lots']} cars")
+        else:
+            logger.info("No cars processed")
         return results
     except Exception as e:
         logger.error(f"Price prediction failed: {e}")
@@ -79,13 +82,25 @@ def _on_failure_callback(context):
     message = build_failure_message(dag_id, task_id, execution_date, exception)
     send_telegram_message(message)
 
+
 def _on_success_callback(context):
     dag_id = context["dag"].dag_id
     task_id = context["task_instance"].task_id
     execution_date = context["execution_date"]
 
-    result = context["task_instance"].xcom_pull(task_ids=task_id)
-    extra = f"Обработано лотов: {result.get('total_lots', 'N/A')}" if result else ""
+    result = context["task_instance"].xcom_pull(task_ids=task_id, key="return_value")
+    if not result or not isinstance(result, dict):
+        extra = "Данные о результатах предсказаний отсутствуют."
+    else:
+        total = result.get("count_lots", 0)
+        details = result.get("details", [])
+        detail_lines = []
+        for item in details:
+            feature = item.get("feature_count", "N/A")
+            count = item.get("count_lots", 0)
+            detail_lines.append(f"• {feature}: {count} признаков")
+        details_text = "\n".join(detail_lines) if detail_lines else "Нет деталей"
+        extra = f"Всего обработано лотов: {total}\nПризнаков:\n{details_text}"
 
     start = context["dag_run"].start_date
     end = context["task_instance"].end_date or context["task_instance"].start_date
