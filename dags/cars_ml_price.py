@@ -62,11 +62,6 @@ def _predict_prices_task():
             save_to_db=True,
             show_display=False
         )
-
-        if results:
-            logger.info(f"Price predictions completed. Processed {results['count_lots']} cars")
-        else:
-            logger.info("No cars processed")
         return results
     except Exception as e:
         logger.error(f"Price prediction failed: {e}")
