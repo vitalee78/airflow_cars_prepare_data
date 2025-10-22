@@ -106,13 +106,13 @@ with DAG(
 ) as dag:
     train_model = PythonOperator(
         task_id='train_model ',
-        postgres_conn_id='japan_cars_db',
+        python_callable=_train_model_task,
         on_failure_callback=_on_failure_callback,
     )
 
     predict_prices = PythonOperator(
         task_id='predict_prices',
-        python_callable=PredictModel.predict_and_save,
+        python_callable=_predict_prices_task,
         on_failure_callback=_on_failure_callback,
         on_success_callback=_on_success_callback,
     )
