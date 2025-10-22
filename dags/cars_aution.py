@@ -6,12 +6,9 @@ import pendulum
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
-from airflow.operators.dummy import DummyOperator
 
-from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
 from scripts.cars.auctions.parser_auctions import ParserAuctions
-from telegram_notifier import TelegramNotifier
-from sent_dag_aummary import _send_dag_summary
+from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
 
 local_tz = pendulum.timezone("Asia/Novosibirsk")
 

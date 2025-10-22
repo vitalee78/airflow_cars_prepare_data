@@ -9,7 +9,7 @@ from airflow.operators.python import PythonOperator
 from scripts.cars.ml.predict import Predict
 from scripts.cars.ml.train_model import Train
 
-from cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
+from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
 
 # Добавляем путь к проекту для импорта модулей
 project_root = Path(__file__).parent.parent
