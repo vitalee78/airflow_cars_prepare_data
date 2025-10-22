@@ -1,9 +1,9 @@
 # ml/train_model.py
 import logging
 import pickle
-import sys
 import warnings
 from pathlib import Path
+from typing import Dict, Any
 
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
@@ -33,13 +33,17 @@ NUMERICAL_FEATURES = [
 
 CATEGORICAL_FEATURES = ['id_brand', 'id_model', 'id_carbody', 'transmission', 'drive_type', 'fuel_type']
 
+
 class Train:
     def __init__(self, airflow_mode: bool = True):
         self.airflow_mode = airflow_mode
+        # Определяем корень проекта относительно текущего файла
+        self.project_root = Path(__file__).parent.parent
+        self.models_dir = self.project_root / "models"
+        self.models_dir.mkdir(exist_ok=True)
 
-    def prepare_features(self, df):
+    def prepare_features(self, df: pd.DataFrame):
         """Подготовка признаков с one-hot encoding"""
-
         # Числовые признаки
         X_numerical = df[NUMERICAL_FEATURES].fillna(0)
 
@@ -60,14 +64,12 @@ class Train:
 
         return X_processed, encoder
 
-
-    def train_and_evaluate(self):
+    def train_and_evaluate(self) -> Dict[str, Any]:
+        """
+        Обучает модель и возвращает метрики + путь к модели.
+        Не вызывает sys.exit — исключения пробрасываются выше для обработки Airflow.
+        """
         engine = get_engine(airflow_mode=self.airflow_mode)
-
-        current_dir = Path(__file__).parent
-        project_root = current_dir.parent
-        models_dir = project_root / "models"
-        models_dir.mkdir(exist_ok=True)
 
         try:
             connection = engine.raw_connection()
@@ -118,33 +120,43 @@ class Train:
             r2_train = r2_score(y_train, y_pred_train)
             r2_test = r2_score(y_test, y_pred_test)
 
-            # print(f"\n=== МЕТРИКИ МОДЕЛИ ===")
-            # print(f"MAE (train): {mae_train:,.0f} руб")
-            # print(f"MAE (test):  {mae_test:,.0f} руб")
-            # print(f"R² (train): {r2_train:.3f}")
-            # print(f"R² (test):  {r2_test:.3f}")
             logger.info(f"Размер тренировочной выборки: {len(X_train)}")
             logger.info(f"Размер тестовой выборки: {len(X_test)}")
+            logger.info(f"MAE (train): {mae_train:,.0f} руб, MAE (test): {mae_test:,.0f} руб")
+            logger.info(f"R² (train): {r2_train:.3f}, R² (test): {r2_test:.3f}")
+
+            # Генерируем имя модели с временной меткой или версией
+            model_filename = "car_price_model_v4.pkl"
+            model_path = self.models_dir / model_filename
 
             # Сохраняем модель
-            model_path = models_dir / "car_price_model_v4.pkl"
+            model_artifact = {
+                'model': model,
+                'encoder': encoder,
+                'numerical_features': NUMERICAL_FEATURES,
+                'categorical_features': CATEGORICAL_FEATURES,
+                'all_feature_columns': list(X.columns),
+                'metrics': {
+                    'mae_train': mae_train,
+                    'mae_test': mae_test,
+                    'r2_train': r2_train,
+                    'r2_test': r2_test
+                },
+                'training_date': pd.Timestamp.now(),
+                'training_samples': len(X_train),
+                'feature_importance': dict(zip(X.columns, model.feature_importances_))
+            }
+
             with open(model_path, "wb") as f:
-                pickle.dump({
-                    'model': model,
-                    'encoder': encoder,
-                    'numerical_features': NUMERICAL_FEATURES,
-                    'categorical_features': CATEGORICAL_FEATURES,
-                    'all_feature_columns': list(X.columns),
-                    'metrics': {
-                        'mae_train': mae_train, 'mae_test': mae_test,
-                        'r2_train': r2_train, 'r2_test': r2_test
-                    },
-                    'training_date': pd.Timestamp.now(),
-                    'training_samples': len(X_train),
-                    'feature_importance': dict(zip(X.columns, model.feature_importances_))
-                }, f)
+                pickle.dump(model_artifact, f)
 
             logger.info(f"Модель успешно сохранена в: {model_path}")
+
+            # Обновляем latest_model.txt
+            latest_file = self.models_dir / "latest_model.txt"
+            with open(latest_file, "w") as f:
+                f.write(model_filename)
+            logger.info(f"Активная модель обновлена: {model_filename}")
 
             # Топ-15 самых важных признаков
             feature_importance = sorted(
@@ -156,11 +168,20 @@ class Train:
             for feature, importance in feature_importance:
                 logger.info(f"  {feature}: {importance:.3f}")
 
+            # Возвращаем результат для Airflow (можно отправить в XCom)
+            return {
+                "model_path": str(model_path),
+                "metrics": model_artifact["metrics"],
+                "training_samples": len(X_train),
+                "status": "success"
+            }
+
         except Exception as e:
             logger.error(f"Ошибка при обучении модели: {e}")
-            sys.exit(1)
+            raise  # Пробрасываем исключение — Airflow сам обработает как failure
 
 
 if __name__ == "__main__":
     train = Train(airflow_mode=False)
-    train.train_and_evaluate()
+    result = train.train_and_evaluate()
+    print("Обучение завершено успешно:", result["model_path"])

@@ -1,124 +1,211 @@
+# scripts/cars/ml/predict.py
 import logging
 import pickle
-import sys
 import warnings
 from pathlib import Path
+from typing import Optional, List, Any
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
 
 from scripts.cars.common.db_postgres import get_engine
 
 logger = logging.getLogger(__name__)
-
 warnings.filterwarnings("ignore")
 
-# Конфиг аукциона
+# Конфиг аукциона (можно переопределить через аргумент)
 AUCTION_CONFIG = {
     'start_price_ratio': 0.7,
     'min_start_price': 100000,
     'max_start_price': 5000000,
     'start_price_source': 'market',
     'filters': {
-        'min_year': None,  # или 2020
-        'max_year': None,  # или 2023
-        'top': None  # количество записей по брендам
+        'min_year': None,
+        'max_year': None,
+        'top': None
     }
 }
+
 
 class Predict:
     def __init__(self, airflow_mode: bool = True):
         self.airflow_mode = airflow_mode
+        # Определяем корень проекта относительно текущего файла
+        self.project_root = Path(__file__).parent.parent  # scripts/cars/ml → корень проекта
+        self.models_dir = self.project_root / "models"
 
-    def predict_auction_prices(self, config=None, save_to_db=False, show_display=False):
+    def _load_latest_model(self):
+        """Загружает последнюю активную модель по latest_model.txt"""
+        latest_file = self.models_dir / "latest_model.txt"
+        if not latest_file.exists():
+            raise FileNotFoundError(
+                f"Файл {latest_file} не найден. Обучите модель сначала (он должен содержать имя .pkl файла)."
+            )
+
+        with open(latest_file, "r") as f:
+            model_filename = f.read().strip()
+
+        model_path = self.models_dir / model_filename
+        if not model_path.exists():
+            raise FileNotFoundError(f"Модель {model_path} не найдена.")
+
+        logger.info(f"Загружается модель: {model_filename}")
+        with open(model_path, "rb") as f:
+            return pickle.load(f)
+
+    def prepare_prediction_features(
+        self,
+        df: pd.DataFrame,
+        numerical_features: List[str],
+        categorical_features: List[str],
+        encoder: OneHotEncoder,
+        all_feature_columns: List[str]
+    ) -> pd.DataFrame:
+        """Подготовка признаков для предикта (аналогично обучению)"""
+        # Числовые признаки
+        X_numerical = df[numerical_features].fillna(0)
+
+        # One-hot для категориальных
+        X_categorical = encoder.transform(df[categorical_features])
+
+        # Воссоздаём колонки
+        categorical_columns = []
+        for i, feature in enumerate(categorical_features):
+            for category in encoder.categories_[i][1:]:
+                categorical_columns.append(f"{feature}_{category}")
+
+        X_categorical_df = pd.DataFrame(X_categorical, columns=categorical_columns, index=df.index)
+
+        # Объединяем
+        X_processed = pd.concat([X_numerical, X_categorical_df], axis=1)
+
+        # Приводим к тому же порядку колонок, что и при обучении
+        X_processed = X_processed.reindex(columns=all_feature_columns, fill_value=0)
+
+        return X_processed
+
+    def calculate_start_prices(self, df: pd.DataFrame, config: dict) -> pd.DataFrame:
+        """Рассчитывает стартовую цену аукциона"""
+        # Пример реализации — адаптируйте под вашу логику
+        df['start_price'] = (df['predicted_price'] * config['start_price_ratio']).clip(
+            lower=config['min_start_price'],
+            upper=config['max_start_price']
+        )
+        return df
+
+    def calculate_confidence(self, predictions: np.ndarray, df: pd.DataFrame) -> pd.Series:
+        """Пример: доверие на основе отклонения от рыночной цены"""
+        # Заглушка — замените на вашу логику
+        return pd.Series([0.95] * len(predictions), index=df.index)
+
+    def save_predictions_to_db(self, df: pd.DataFrame, engine):
+        """Сохраняет прогнозы в БД"""
+        # Реализуйте по вашей схеме
+        logger.info("Сохранение прогнозов в БД...")
+        # Пример:
+        # df.to_sql("mart.ml_predictions", engine, if_exists="append", index=False)
+
+    def display_results(self, df: pd.DataFrame, min_year=None, max_year=None, top_count=None):
+        """Вывод результатов в консоль"""
+        filtered = df.copy()
+        if min_year:
+            filtered = filtered[filtered['year_release'] >= min_year]
+        if max_year:
+            filtered = filtered[filtered['year_release'] <= max_year]
+        if top_count:
+            filtered = filtered.head(top_count)
+
+        print("\n=== ПРОГНОЗЫ ===")
+        for _, row in filtered.iterrows():
+            print(f"{row['car_info']} → прогноз: {row['predicted_price']:,.0f} руб, старт: {row['start_price']:,.0f} руб")
+
+    def predict_auction_prices(
+        self,
+        config: Optional[dict] = None,
+        save_to_db: bool = False,
+        show_display: bool = False
+    ) -> Optional[pd.DataFrame]:
         """Прогнозирование цен для будущих аукционов"""
+        # Обновляем конфиг
+        current_config = AUCTION_CONFIG.copy()
         if config:
-            AUCTION_CONFIG.update(config)
+            current_config.update(config)
 
+        logger.info("Начало прогнозирования цен...")
         engine = get_engine(airflow_mode=self.airflow_mode)
 
-        # Загружаем модель
-        model_path = Path("../models/car_price_model_v4.pkl")
+        # Загружаем модель через latest_model.txt
         try:
-            if not model_path.exists():
-                # Пробуем загрузить предыдущую версию
-                model_path = Path("../models/car_price_model_v3.pkl")
-                if not model_path.exists():
-                    logger.error(f"Модель не найдена: {model_path}")
-        except FileNotFoundError as e:
-            logger.error(f"Not found model ", e)
-            sys.exit(1)
-
-        with open(model_path, "rb") as f:
-            model_data = pickle.load(f)
+            model_data = self._load_latest_model()
+        except Exception as e:
+            logger.error(f"Ошибка загрузки модели: {e}")
+            raise  # Airflow сам обработает как failure
 
         model = model_data['model']
-        encoder = model_data.get('encoder')
-        numerical_features = model_data.get('numerical_features', [])
-        categorical_features = model_data.get('categorical_features', [])
-        all_feature_columns = model_data.get('all_feature_columns', [])
+        encoder = model_data['encoder']
+        numerical_features = model_data['numerical_features']
+        categorical_features = model_data['categorical_features']
+        all_feature_columns = model_data['all_feature_columns']
 
-        print(f"=== ЗАГРУЗКА ДАННЫХ ===")
-        print(f"Модель: {len(all_feature_columns)} признаков")
-        print(f"Числовые признаки: {len(numerical_features)}")
-        print(f"Категориальные признаки: {len(categorical_features)}")
+        logger.info(f"Модель загружена. Признаков: {len(all_feature_columns)}")
 
-        # Загружаем данные для прогноза
+        # Загружаем данные
         connection = engine.raw_connection()
         try:
             df = pd.read_sql("""
-                  SELECT 
-                        f.*,
-                        b.brand,
-                        m.model,
-                        cb.carbody,
-                        fac.link_source,
-                        CONCAT(b.brand, ' ', m.model, ' ', f.year_release::text, ' (', cb.carbody, ')') as car_info
-                    FROM mart.v_ml_car_price_features f
-                    LEFT JOIN ref.ref_brands b ON f.id_brand = b.id_brand
-                    LEFT JOIN ref.ref_models m ON f.id_model = m.id_model
-                    LEFT JOIN ref.ref_carbodies cb ON f.id_carbody = cb.id_carbody
-                    LEFT JOIN fact.f_auction_cars fac ON fac.id_car = f.id_car
-                    WHERE f.data_type = 'prediction'
-                      AND f.auction_date > CURRENT_DATE;
+                SELECT 
+                    f.*,
+                    b.brand,
+                    m.model,
+                    cb.carbody,
+                    fac.link_source,
+                    CONCAT(b.brand, ' ', m.model, ' ', f.year_release::text, ' (', cb.carbody, ')') as car_info
+                FROM mart.v_ml_car_price_features f
+                LEFT JOIN ref.ref_brands b ON f.id_brand = b.id_brand
+                LEFT JOIN ref.ref_models m ON f.id_model = m.id_model
+                LEFT JOIN ref.ref_carbodies cb ON f.id_carbody = cb.id_carbody
+                LEFT JOIN fact.f_auction_cars fac ON fac.id_car = f.id_car
+                WHERE f.data_type = 'prediction'
+                  AND f.auction_date > CURRENT_DATE;
             """, connection)
         finally:
             connection.close()
 
         if df.empty:
-            print("Нет будущих лотов для прогнозирования")
-            return
+            logger.info("Нет будущих лотов для прогнозирования")
+            return None
 
-        print(f"Загружено лотов: {len(df)}")
+        logger.info(f"Загружено лотов: {len(df)}")
 
         # Подготавливаем признаки
-        X_pred = self.prepare_prediction_features(df, numerical_features, categorical_features, encoder, all_feature_columns)
+        X_pred = self.prepare_prediction_features(
+            df, numerical_features, categorical_features, encoder, all_feature_columns
+        )
 
-        # Прогнозируем
+        # Прогноз
         predictions = model.predict(X_pred)
-
-        # Формируем результаты
         df['predicted_price'] = predictions
         df['prediction_date'] = pd.Timestamp.now()
 
-        # Рассчитываем стартовые цены
-        df = self.calculate_start_prices(df, AUCTION_CONFIG)
-
-        # Рассчитываем доверие
+        # Стартовые цены и доверие
+        df = self.calculate_start_prices(df, current_config)
         df['prediction_confidence'] = self.calculate_confidence(predictions, df)
 
-        # Сохраняем в БД если нужно
+        # Сохранение и вывод
         if save_to_db:
             self.save_predictions_to_db(df, engine)
 
-        # Применяем фильтр года из конфига
         if show_display:
-            filters = AUCTION_CONFIG.get('filters', {})
-            self.display_results(df,
-                            min_year=filters.get('min_year'),
-                            max_year=filters.get('max_year'),
-                            top_count=filters.get('top'))
+            filters = current_config.get('filters', {})
+            self.display_results(
+                df,
+                min_year=filters.get('min_year'),
+                max_year=filters.get('max_year'),
+                top_count=filters.get('top')
+            )
 
+        logger.info("Прогнозирование завершено успешно")
         return df
 
 
