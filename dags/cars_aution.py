@@ -5,7 +5,8 @@ from datetime import datetime
 import pendulum
 from airflow import DAG
 from airflow.models import Variable
-from airflow.operators.python import PythonOperator, BashOperator
+from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 
 from scripts.cars.auctions.parser_auctions import ParserAuctions
 from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
