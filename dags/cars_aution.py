@@ -5,7 +5,7 @@ from datetime import datetime
 import pendulum
 from airflow import DAG
 from airflow.models import Variable
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BashOperator
 
 from scripts.cars.auctions.parser_auctions import ParserAuctions
 from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
@@ -72,8 +72,8 @@ def _on_success_callback(context):
 with DAG(
         'japan_cars_auction',
         start_date=datetime(2025, 10, 11, tzinfo=local_tz),
-        schedule_interval='0 10,19,22 * * *',
-        # 10:00, 19:00, 22:00 — и на следующий день снова с 10:00
+        schedule_interval='0 10,16,19,22 * * *',
+        # 10:00, 16:00, 19:00, 22:00 — и на следующий день снова с 10:00
         catchup=False,
         tags=['japan', 'cars', 'auctions'],
 ) as dag:
@@ -83,3 +83,9 @@ with DAG(
         on_failure_callback=_on_failure_callback,
         on_success_callback=_on_success_callback,
     )
+    restart_carapp = BashOperator(
+        task_id='restart_carapp_service',
+        bash_command='/opt/airflow/scripts/restart_carapp.sh',
+    )
+
+    parse_and_load_auction >> restart_carapp
