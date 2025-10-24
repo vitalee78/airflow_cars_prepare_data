@@ -87,6 +87,7 @@ with DAG(
     restart_carapp = BashOperator(
         task_id='restart_carapp_service',
         bash_command='/bash/bash /home/ubuntu/airflow/airflow_home/scripts/restart_carapp.sh',
+        on_failure_callback=_on_failure_callback,
     )
 
     parse_and_load_auction >> restart_carapp
