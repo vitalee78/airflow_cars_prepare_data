@@ -1,6 +1,6 @@
 version: 2
 models:
-  - name: fact_cars_enriched
+  - name: min_cost_cars_enriched
     description: "Обогащённая таблица фактов с брендами и моделями"
     columns:
       - name: id

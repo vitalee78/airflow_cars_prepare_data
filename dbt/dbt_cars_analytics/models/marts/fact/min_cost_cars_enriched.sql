@@ -1,4 +1,4 @@
-{{ config(materialized='table', schema='fact') }}
+{{ config(materialized='table', schema='mart') }}
 
 with auction as (
     select * from {{ ref('stg_auction_cars') }}
@@ -6,7 +6,6 @@ with auction as (
 stats as (
     select * from {{ source('raw', 'cars_raw') }}
 ),
--- Находим для каждого аукционного лота ближайший по пробегу лот из статистики
 enriched_with_closest as (
     select
         a.id_car,
@@ -36,15 +35,12 @@ enriched_with_closest as (
         and a.id_carbody = s.id_carbody
         and a.year_release = s.year_release
         and a.rate       = s.rate
-        -- опционально: можно добавить фильтр по году или другим признакам
 ),
--- Берём только самый близкий по пробегу
 closest_match as (
     select *
     from enriched_with_closest
     where rn = 1
 ),
--- Справочники
 brands as (select id_brand, brand from {{ ref('stg_brands') }}),
 models as (select id_model, model from {{ ref('stg_models') }}),
 carbodies as (select id_carbody, carbody from {{ ref('stg_carbodies') }})
@@ -59,7 +55,7 @@ select
     cm.transmission,
     cm.drive_type,
     cm.fuel_type,
-    cm.closest_mileage_price as price,  -- ← выгодная цена из статистики
+    cm.closest_mileage_price as price,
     cm.source_lot_id,
     cm.link_source,
     cm.auction_date,

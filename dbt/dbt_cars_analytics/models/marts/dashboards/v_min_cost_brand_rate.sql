@@ -1,4 +1,4 @@
-{{ config(materialized='view', schema='mart_cars') }}
+{{ config(materialized='view', schema='mart') }}
 
 with current_vld as (
     select (now() at time zone 'Asia/Novosibirsk')::date as today
@@ -19,7 +19,7 @@ filtered_lots as (
         s.link_source,
         s.auction_date,
         s.source_lot_id
-    from {{ ref('fact_cars_enriched') }} s
+    from {{ ref('min_cost_cars_enriched') }} s
     cross join date_range dr
     where s.auction_date between dr.min_auction_date and dr.max_auction_date
       and s.price is not null

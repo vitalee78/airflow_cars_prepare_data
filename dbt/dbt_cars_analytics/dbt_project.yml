@@ -25,15 +25,15 @@ models:
     raw:
       +enabled: false
 
-    # STAGING — представления в схеме staging
+    # STAGING — таблицы в схеме staging
     staging:
-      +materialized: view
       +schema: staging
+      +materialized: table
 
     # Marts
     marts:
-      +materialized: table
       +schema: mart
+      +materialized: table
 
       fact:
         +schema: fact
