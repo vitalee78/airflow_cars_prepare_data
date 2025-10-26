@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: raw
     schema: raw
-    description: "Сырые данные из источников (парсинг, API и т.д.)"
+    description: "Сырые данные из источников (парсинг)"
     tables:
       - name: auction_cars_raw
         description: "Сырые лоты с аукционов"

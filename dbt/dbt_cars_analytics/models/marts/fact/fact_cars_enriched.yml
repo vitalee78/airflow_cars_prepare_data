@@ -7,5 +7,5 @@ models:
         tests: [not_null]
       - name: brand
         tests: [not_null]
-      - name: final_price
+      - name: rate
         tests: [not_null]
