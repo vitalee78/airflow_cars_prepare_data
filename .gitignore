@@ -295,3 +295,4 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 .idea/
+scripts/cars/models/car_price_model_v4.pkl
