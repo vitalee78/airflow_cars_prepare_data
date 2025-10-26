@@ -26,8 +26,8 @@ class ParserCars(BaseParser):
         self.BATCH_SIZE = batch_size
         self.airflow_mode = airflow_mode
         self.brand_models = brand_models if brand_models is not None else ["honda/vezel", "mazda/cx-30"]
-        self.option_cars_list = option_cars_list if option_cars_list is not None else ["year-from=2016",
-                                                                                       "year-from=2016"]
+        self.option_cars_list = option_cars_list if option_cars_list is not None else ["year-from=2016&year-to=2016",
+                                                                                       "year-from=2016&year-to=2016"]
         self.BASE_URL = "https://tokidoki.su"
         self.HEADERS = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',

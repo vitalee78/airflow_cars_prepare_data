@@ -1,0 +1,37 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Сырые данные из источников (парсинг, API и т.д.)"
+    tables:
+      - name: auction_cars_raw
+        description: "Сырые лоты с аукционов"
+        columns:
+          - name: id_car
+            description: "Уникальный ID автомобиля в источнике"
+          - name: source_lot_id
+            tests:
+              - unique
+              - not_null
+
+      - name: cars_raw
+        description: "Сырые данные о машинах вне аукционов"
+
+      - name: brands_raw
+        columns:
+          - name: brand
+            tests:
+              - not_null
+
+      - name: models_raw
+        columns:
+          - name: model
+            tests:
+              - not_null
+
+      - name: carbodies_raw
+        columns:
+          - name: carbody
+            tests:
+              - not_null

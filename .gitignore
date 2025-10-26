@@ -13,6 +13,9 @@ test_*
 files_data/
 misc.*
 vcs.*
+run_dbt.ps1
+run_dbt_local.py
+.user.*
 
 # User-specific stuff
 .idea/**/workspace.xml

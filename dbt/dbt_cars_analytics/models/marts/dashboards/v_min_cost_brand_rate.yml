@@ -1,0 +1,13 @@
+version: 2
+models:
+  - name: v_min_cost_brand_rate
+    description: "Минимальная цена автомобиля по бренду, кузову, году и рейтингу за ближайшие 3 дня."
+    columns:
+      - name: brand
+        tests: [not_null]
+      - name: carbody
+        tests: [not_null]
+      - name: min_cost
+        tests: [not_null]
+      - name: source_lot_id
+        tests: [unique, not_null]

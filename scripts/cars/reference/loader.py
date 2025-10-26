@@ -20,7 +20,7 @@ class ReferenceLoader:
 
         with self.engine.begin() as conn:
             result = conn.execute(
-                text("SELECT fact.fn_get_or_insert_brand(:brand)"),
+                text("SELECT raw.fn_get_or_insert_brand(:brand)"),
                 {"brand": brand_name}
             ).scalar()
 
@@ -34,7 +34,7 @@ class ReferenceLoader:
 
         with self.engine.begin() as conn:
             result = conn.execute(
-                text("SELECT fact.fn_get_or_insert_model(:brand_id, :model)"),
+                text("SELECT raw.fn_get_or_insert_model(:brand_id, :model)"),
                 {"brand_id": brand_id, "model": model_name}
             ).scalar()
 
@@ -57,7 +57,7 @@ class ReferenceLoader:
 
         with self.engine.begin() as conn:
             result = conn.execute(
-                text("SELECT fact.fn_get_or_insert_carbody(:model_id, :carbody)"),
+                text("SELECT raw.fn_get_or_insert_carbody(:model_id, :carbody)"),
                 {"model_id": model_id, "carbody": carbody_upper}
             ).scalar()
 

@@ -1,0 +1,11 @@
+version: 2
+models:
+  - name: fact_cars_enriched
+    description: "Обогащённая таблица фактов с брендами и моделями"
+    columns:
+      - name: id
+        tests: [not_null]
+      - name: brand
+        tests: [not_null]
+      - name: final_price
+        tests: [not_null]
