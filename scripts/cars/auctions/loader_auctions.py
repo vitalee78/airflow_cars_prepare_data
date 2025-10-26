@@ -50,7 +50,7 @@ class LoaderAuctions:
 
             with engine.begin() as conn:
                 conn.execute(
-                    text("SELECT fact.fn_upsert_auction_cars(:data)"),
+                    text("SELECT raw.fn_upsert_auction_cars(:data)"),
                     {"data": json_str}
                 )
         except Exception as e:
