@@ -1,4 +1,4 @@
-{{ config(materialized='table', schema='mart') }}
+{{ config(materialized='table', schema='fact') }}
 
 with auction as (
     select * from {{ ref('stg_auction_cars') }}

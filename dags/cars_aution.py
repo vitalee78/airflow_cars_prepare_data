@@ -74,7 +74,6 @@ with DAG(
         'japan_cars_auction',
         start_date=datetime(2025, 10, 11, tzinfo=local_tz),
         schedule_interval='0 10,16,19,22 * * *',
-        # 10:00, 16:00, 19:00, 22:00 — и на следующий день снова с 10:00
         catchup=False,
         tags=['japan', 'cars', 'auctions'],
 ) as dag:
@@ -84,10 +83,26 @@ with DAG(
         on_failure_callback=_on_failure_callback,
         on_success_callback=_on_success_callback,
     )
+
+    run_dbt_models = BashOperator(
+        task_id='run_dbt_models',
+        bash_command=(
+            'cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics && '
+            'source ../env/bin/activate && '
+            'export $(grep -v "^#" .env | xargs) && '
+            'dbt build --profiles-dir . --project-dir .'
+        ),
+        on_failure_callback=_on_failure_callback,
+        env={  # Передаём базовые переменные, если нужно
+            'PATH': '/home/ubuntu/airflow/airflow_home/env/bin:/usr/local/bin:/usr/bin:/bin'
+        }
+    )
+
     restart_carapp = BashOperator(
         task_id='restart_carapp_service',
         bash_command='/home/ubuntu/airflow/airflow_home/scripts/restart_carapp.sh',
         on_failure_callback=_on_failure_callback,
     )
 
-    parse_and_load_auction >> restart_carapp
+    # Порядок выполнения
+    parse_and_load_auction >> run_dbt_models
