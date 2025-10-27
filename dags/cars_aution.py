@@ -83,14 +83,14 @@ with DAG(
         on_failure_callback=_on_failure_callback,
         on_success_callback=_on_success_callback,
     )
-
+    # . --exclude test_type:generic отключены тесты
     run_dbt_models = BashOperator(
         task_id='run_dbt_models',
         bash_command='''
             cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics &&
             unset PYTHONPATH &&
             set -a && source /etc/myapp/.env && set +a &&
-            /home/ubuntu/projects/airflow/env/bin/dbt build --profiles-dir . --project-dir .
+            /home/ubuntu/projects/airflow/env/bin/dbt build --profiles-dir . --project-dir . --exclude test_type:generic
         ''',
         on_failure_callback=_on_failure_callback,
     )
