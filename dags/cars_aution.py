@@ -88,9 +88,8 @@ with DAG(
         task_id='run_dbt_models',
         bash_command='''
             cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics &&
-            set -a
-            source /etc/myapp/.env
-            set +a
+            unset PYTHONPATH &&
+            set -a && source /etc/myapp/.env && set +a &&
             /home/ubuntu/projects/airflow/env/bin/dbt build --profiles-dir . --project-dir .
         ''',
         on_failure_callback=_on_failure_callback,
