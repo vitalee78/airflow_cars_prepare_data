@@ -87,15 +87,14 @@ with DAG(
     run_dbt_models = BashOperator(
         task_id='run_dbt_models',
         bash_command=(
-            'cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics && '
-            'source ../env/bin/activate && '
+            'cd /home/ubuntu/projects/airflow/env/bin/activate '
             'export $(grep -v "^#" .env | xargs) && '
             'dbt build --profiles-dir . --project-dir .'
         ),
         on_failure_callback=_on_failure_callback,
-        env={  # Передаём базовые переменные, если нужно
-            'PATH': '/home/ubuntu/airflow/airflow_home/env/bin:/usr/local/bin:/usr/bin:/bin'
-        }
+        # env={  # Передаём базовые переменные, если нужно
+        #     'PATH': '/home/ubuntu/airflow/airflow_home/env/bin:/usr/local/bin:/usr/bin:/bin'
+        # }
     )
 
     restart_carapp = BashOperator(
