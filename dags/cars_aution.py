@@ -77,23 +77,23 @@ with DAG(
         catchup=False,
         tags=['japan', 'cars', 'auctions'],
 ) as dag:
-    # parse_and_load_auction = PythonOperator(
-    #     task_id='parse_and_load_auction',
-    #     python_callable=_run_parsing_auction,
-    #     on_failure_callback=_on_failure_callback,
-    #     on_success_callback=_on_success_callback,
-    # )
-    # # . --exclude test_type:generic отключены тесты
-    # run_dbt_models = BashOperator(
-    #     task_id='run_dbt_models',
-    #     bash_command='''
-    #         cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics &&
-    #         unset PYTHONPATH &&
-    #         set -a && source /etc/myapp/.env && set +a &&
-    #         /home/ubuntu/projects/airflow/env/bin/dbt build --profiles-dir . --project-dir . --exclude test_type:generic
-    #     ''',
-    #     on_failure_callback=_on_failure_callback,
-    # )
+    parse_and_load_auction = PythonOperator(
+        task_id='parse_and_load_auction',
+        python_callable=_run_parsing_auction,
+        on_failure_callback=_on_failure_callback,
+        on_success_callback=_on_success_callback,
+    )
+    # . --exclude test_type:generic отключены тесты
+    run_dbt_models = BashOperator(
+        task_id='run_dbt_models',
+        bash_command='''
+            cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics &&
+            unset PYTHONPATH &&
+            set -a && source /etc/myapp/.env && set +a &&
+            /home/ubuntu/projects/airflow/env/bin/dbt build --profiles-dir . --project-dir . --exclude test_type:generic
+        ''',
+        on_failure_callback=_on_failure_callback,
+    )
 
     restart_carapp = BashOperator(
         task_id='restart_carapp_service',
@@ -102,5 +102,4 @@ with DAG(
     )
 
     # Порядок выполнения
-    # parse_and_load_auction >> run_dbt_models >> \
-    restart_carapp
+    parse_and_load_auction >> run_dbt_models >> restart_carapp
