@@ -76,7 +76,7 @@ class Train:
             try:
                 df = pd.read_sql("""
                     SELECT * 
-                    FROM mart.v_ml_car_price_features 
+                    FROM mart.ml_car_price_features 
                     WHERE target_price IS NOT NULL 
                           AND target_price > 0;
                 """, connection)

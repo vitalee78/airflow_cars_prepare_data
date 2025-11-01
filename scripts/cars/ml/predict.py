@@ -164,13 +164,11 @@ class Predict:
                     cb.carbody,
                     fac.link_source,
                     CONCAT(b.brand, ' ', m.model, ' ', f.year_release::text, ' (', cb.carbody, ')') as car_info
-                FROM mart.v_ml_car_price_features f
-                LEFT JOIN ref.ref_brands b ON f.id_brand = b.id_brand
-                LEFT JOIN ref.ref_models m ON f.id_model = m.id_model
-                LEFT JOIN ref.ref_carbodies cb ON f.id_carbody = cb.id_carbody
-                LEFT JOIN fact.f_auction_cars fac ON fac.id_car = f.id_car
-                WHERE f.data_type = 'prediction'
-                  AND f.auction_date > CURRENT_DATE;
+                FROM mart.ml_car_price_features f
+                LEFT JOIN raw.brands_raw b ON f.id_brand = b.id_brand
+                LEFT JOIN raw.models_raw m ON f.id_model = m.id_model
+                LEFT JOIN raw.carbodies_raw cb ON f.id_carbody = cb.id_carbody
+                LEFT JOIN raw.auction_cars_raw fac ON fac.id_car = f.id_car;
             """, connection)
         finally:
             connection.close()
