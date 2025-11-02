@@ -97,10 +97,9 @@ with DAG(
     #     on_failure_callback=_on_failure_callback,
     # )
 
-    restart_carapp = SSHOperator(
+    restart_carapp = BashOperator(
         task_id='restart_carapp_service',
-        ssh_conn_id='vds_1g',
-        command='sudo systemctl restart carapp',
+        bash_command='systemctl --user status carapp',
         on_failure_callback=_on_failure_callback,
     )
 
