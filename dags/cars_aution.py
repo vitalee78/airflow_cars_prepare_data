@@ -7,6 +7,8 @@ from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
+from airflow.providers.ssh.operators.ssh import SSHOperator
+
 
 from scripts.cars.auctions.parser_auctions import ParserAuctions
 from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
@@ -77,29 +79,31 @@ with DAG(
         catchup=False,
         tags=['japan', 'cars', 'auctions'],
 ) as dag:
-    parse_and_load_auction = PythonOperator(
-        task_id='parse_and_load_auction',
-        python_callable=_run_parsing_auction,
-        on_failure_callback=_on_failure_callback,
-        on_success_callback=_on_success_callback,
-    )
-    # . --exclude test_type:generic отключены тесты
-    run_dbt_models = BashOperator(
-        task_id='run_dbt_models',
-        bash_command='''
-            cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics &&
-            unset PYTHONPATH &&
-            set -a && source /etc/myapp/.env && set +a &&
-            /home/ubuntu/projects/airflow/env/bin/dbt build --profiles-dir . --project-dir . --exclude test_type:generic
-        ''',
-        on_failure_callback=_on_failure_callback,
-    )
+    # parse_and_load_auction = PythonOperator(
+    #     task_id='parse_and_load_auction',
+    #     python_callable=_run_parsing_auction,
+    #     on_failure_callback=_on_failure_callback,
+    #     on_success_callback=_on_success_callback,
+    # )
+    # # . --exclude test_type:generic отключены тесты
+    # run_dbt_models = BashOperator(
+    #     task_id='run_dbt_models',
+    #     bash_command='''
+    #         cd /home/ubuntu/airflow/airflow_home/dbt/dbt_cars_analytics &&
+    #         unset PYTHONPATH &&
+    #         set -a && source /etc/myapp/.env && set +a &&
+    #         /home/ubuntu/projects/airflow/env/bin/dbt build --profiles-dir . --project-dir . --exclude test_type:generic
+    #     ''',
+    #     on_failure_callback=_on_failure_callback,
+    # )
 
-    restart_carapp = BashOperator(
+    restart_carapp = SSHOperator(
         task_id='restart_carapp_service',
-        bash_command='/bin/bash -c "/home/ubuntu/airflow/airflow_home/scripts/restart_carapp.sh"',
+        ssh_conn_id='vds',
+        command='sudo systemctl restart carapp',
         on_failure_callback=_on_failure_callback,
     )
 
     # Порядок выполнения
-    parse_and_load_auction >> run_dbt_models >> restart_carapp
+    # parse_and_load_auction >> run_dbt_models >> restart_carapp
+    restart_carapp
