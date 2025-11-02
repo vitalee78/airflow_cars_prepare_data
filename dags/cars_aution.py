@@ -99,7 +99,7 @@ with DAG(
 
     restart_carapp = SSHOperator(
         task_id='restart_carapp_service',
-        ssh_conn_id='vds',
+        ssh_conn_id='vds_1g',
         command='sudo systemctl restart carapp',
         on_failure_callback=_on_failure_callback,
     )
