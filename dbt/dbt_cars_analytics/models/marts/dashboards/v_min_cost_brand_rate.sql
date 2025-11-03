@@ -44,4 +44,5 @@ select
     source_lot_id
 from ranked
 where rn = 1
+and year_release between '2016' and '2020'
 order by brand, carbody
