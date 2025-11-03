@@ -54,7 +54,7 @@ def _cleanup_csv(**context):
     csv_path = context["task_instance"].xcom_pull(task_ids='export_min_cost_cars_csv')
     if csv_path and os.path.exists(csv_path):
         os.remove(csv_path)
-        print(f"🗑Временный файл удалён: {csv_path}")
+        print(f"Временный файл удалён: {csv_path}")
 
 
 def _on_failure_callback(context):
@@ -99,7 +99,7 @@ def _on_success_callback(context):
 with DAG(
         'japan_cars_auction',
         start_date=datetime(2025, 10, 11, tzinfo=local_tz),
-        schedule_interval='0 10,16,19,22 * * *',
+        schedule_interval='0,16,19 * * *',
         catchup=False,
         tags=['japan', 'cars', 'auctions'],
 ) as dag:
