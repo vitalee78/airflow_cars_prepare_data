@@ -98,7 +98,7 @@ with DAG(
 
     restart_carapp = BashOperator(
         task_id='restart_carapp_service',
-        bash_command='systemctl --user status carapp',
+        bash_command='systemctl --user restart carapp',
         on_failure_callback=_on_failure_callback,
     )
 
