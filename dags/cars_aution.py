@@ -35,7 +35,7 @@ def _run_parsing_auction(**context):
 
 def _export_min_cost_cars_to_csv(**context):
     """Экспортирует fact.min_cost_cars_enriched в CSV."""
-    hook = PostgresHook(postgres_conn_id='postgres_default')
+    hook = PostgresHook(postgres_conn_id='japan_cars_db')
     sql = "SELECT * FROM fact.min_cost_cars_enriched;"
     df = hook.get_pandas_df(sql)
 
