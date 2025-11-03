@@ -24,16 +24,19 @@ enriched_with_closest as (
         a.equipment,
         s."cost" as closest_mileage_price,
         s.mileage as stat_mileage,
+        s.year_release as stat_year,
+        -- Основной порядок: сначала разница в пробеге, потом год выпуска
         row_number() over (
             partition by a.id_car
-            order by abs(a.mileage - s.mileage)
+            order by
+                abs(a.mileage - s.mileage),
+                abs(a.year_release - s.year_release)
         ) as rn
     from auction a
     inner join stats s
         on a.id_brand    = s.id_brand
         and a.id_model   = s.id_model
         and a.id_carbody = s.id_carbody
-        and a.year_release = s.year_release
         and a.rate       = s.rate
 ),
 closest_match as (
@@ -62,3 +65,4 @@ from closest_match cm
 left join brands b      on cm.id_brand = b.id_brand
 left join models m      on cm.id_model = m.id_model
 left join carbodies cb  on cm.id_carbody = cb.id_carbody
+where cm.year_release between '2016' and '2020'
