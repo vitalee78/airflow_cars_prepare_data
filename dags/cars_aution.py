@@ -1,5 +1,5 @@
 # dags/cars_lots.py
-
+import os
 from datetime import datetime
 
 import pendulum
@@ -7,10 +7,11 @@ from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
-from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 from scripts.cars.auctions.parser_auctions import ParserAuctions
 from scripts.cars.common.telegram_alerts import build_failure_message, send_telegram_message, build_success_message
+from scripts.cars.common.telegram_file_sender import send_csv_to_telegram
 
 local_tz = pendulum.timezone("Asia/Novosibirsk")
 
@@ -30,6 +31,30 @@ def _run_parsing_auction(**context):
     )
     result = parser.parse_auctions_and_save()
     return result
+
+
+def _export_min_cost_cars_to_csv(**context):
+    """Экспортирует fact.min_cost_cars_enriched в CSV."""
+    hook = PostgresHook(postgres_conn_id='postgres_default')
+    sql = "SELECT * FROM fact.min_cost_cars_enriched;"
+    df = hook.get_pandas_df(sql)
+
+    # Сохраняем в /tmp с датой
+    csv_path = f"/tmp/min_cost_cars_{context['ds']}.csv"
+    df.to_csv(csv_path, index=False, encoding='utf-8')
+
+    # Логируем размер
+    size_kb = os.path.getsize(csv_path) / 1024
+    print(f"Сохранён CSV: {csv_path} ({size_kb:.1f} KB)")
+
+    return csv_path
+
+
+def _cleanup_csv(**context):
+    csv_path = context["task_instance"].xcom_pull(task_ids='export_min_cost_cars_csv')
+    if csv_path and os.path.exists(csv_path):
+        os.remove(csv_path)
+        print(f"🗑Временный файл удалён: {csv_path}")
 
 
 def _on_failure_callback(context):
@@ -96,6 +121,23 @@ with DAG(
         on_failure_callback=_on_failure_callback,
     )
 
+    export_min_cost_cars_csv = PythonOperator(
+        task_id='export_min_cost_cars_csv',
+        python_callable=_export_min_cost_cars_to_csv,
+        on_failure_callback=_on_failure_callback,
+    )
+
+    send_csv_to_telegram_task = PythonOperator(
+        task_id='send_csv_to_telegram',
+        python_callable=send_csv_to_telegram,
+        on_failure_callback=_on_failure_callback,
+    )
+
+    cleanup_csv = PythonOperator(
+        task_id='cleanup_csv',
+        python_callable=_cleanup_csv,
+    )
+
     restart_carapp = BashOperator(
         task_id='restart_carapp_service',
         bash_command='systemctl --user restart carapp',
@@ -103,5 +145,11 @@ with DAG(
     )
 
     # Порядок выполнения
-    parse_and_load_auction >> run_dbt_models >> restart_carapp
-    # restart_carapp
+    (
+            parse_and_load_auction
+            >> run_dbt_models
+            >> export_min_cost_cars_csv
+            >> send_csv_to_telegram_task
+            >> cleanup_csv
+            >> restart_carapp
+    )
