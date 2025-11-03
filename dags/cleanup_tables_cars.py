@@ -27,7 +27,7 @@ def _on_failure_callback(context):
 with DAG(
         'cleanup_tables_cars',
         default_args=default_args,
-        description='Удаляет устаревшие записи из f_auction_cars',
+        description='Удаляет устаревшие записи из auction_cars_raw',
         schedule_interval='0 1 * * *',
         start_date=datetime(2025, 10, 18, tzinfo=local_tz),
         catchup=True,
