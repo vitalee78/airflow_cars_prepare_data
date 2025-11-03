@@ -40,7 +40,7 @@ def _export_min_cost_cars_to_csv(**context):
     df = hook.get_pandas_df(sql)
 
     # Сохраняем в /tmp с датой
-    csv_path = f"/tmp/min_cost_cars_{context['logical_date'].strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+    csv_path = f"/tmp/min_cost_cars_{context['ts']}.csv"
     df.to_csv(csv_path, index=False, encoding='utf-8', sep=';')
 
     # Логируем размер
