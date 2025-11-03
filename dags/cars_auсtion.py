@@ -99,7 +99,7 @@ def _on_success_callback(context):
 with DAG(
         'japan_cars_auction',
         start_date=datetime(2025, 10, 11, tzinfo=local_tz),
-        schedule_interval='0,16,19 * * *',
+        schedule_interval='0,16,19 * * * *',
         catchup=False,
         tags=['japan', 'cars', 'auctions'],
 ) as dag:
