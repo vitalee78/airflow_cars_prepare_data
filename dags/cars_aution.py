@@ -138,8 +138,8 @@ with DAG(
         python_callable=_cleanup_csv,
     )
 
-    restart_carapp = BashOperator(
-        task_id='restart_carapp_service',
+    restart_dash = BashOperator(
+        task_id='restart_dash_service',
         bash_command='systemctl --user restart carapp',
         on_failure_callback=_on_failure_callback,
     )
@@ -151,5 +151,5 @@ with DAG(
             >> export_min_cost_cars_csv
             >> send_csv_to_telegram_task
             >> cleanup_csv
-            >> restart_carapp
+            >> restart_dash
     )
