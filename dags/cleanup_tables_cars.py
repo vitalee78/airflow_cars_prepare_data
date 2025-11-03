@@ -30,7 +30,7 @@ with DAG(
         description='Удаляет устаревшие записи из auction_cars_raw',
         schedule_interval='0 1 * * *',
         start_date=datetime(2025, 10, 18, tzinfo=local_tz),
-        catchup=True,
+        catchup=False,
         tags=['cleanup', 'auction'],
 ) as dag:
     cleanup_task = PostgresOperator(
