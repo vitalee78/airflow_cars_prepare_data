@@ -44,6 +44,7 @@ closest_match as (
     from enriched_with_closest
     where rn = 1
 ),
+
 brands as (select id_brand, brand from {{ ref('stg_brands') }}),
 models as (select id_model, model from {{ ref('stg_models') }}),
 carbodies as (select id_carbody, carbody from {{ ref('stg_carbodies') }})
